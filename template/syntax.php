@@ -109,7 +109,7 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 		$content = $t[wr_content];
 
 		// parse the replaced template
-		$wikiParser = wiki_class_load("Parser");
+//		$wikiParser = wiki_class_load("Parser");
 		$wikiParser = new NarinParser();
 		$content = $wikiParser->parse($t);
 		
