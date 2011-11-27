@@ -1,6 +1,6 @@
 <?
 /**
- * 나린위키 tableSorter 플러그인 : 플러그인 정보 클래스
+ * 나린위키 sortableTable 플러그인 : 플러그인 정보 클래스
  *
  * 사용법: 	
  * 		(^ Alphabetic ^ Numeric ^ Date ^ !Unsortable ^)
@@ -16,19 +16,19 @@
  * @author     Jin Jun (jinjunkr@gmail.com)
  */
  
-class NarinPluginInfoTableSorter extends NarinPluginInfo {
+class NarinPluginInfoSortableTable extends NarinPluginInfo {
 
 	/**
 	 * 생성자
 	 */		  	
 	public function __construct() {
-		$this->id = "wiki_tableSorter";
+		$this->id = "wiki_sortableTable";
 		parent::__construct();
-		$this->plugin_path = $this->wiki[path]."/plugins/tableSorter";		// parental class has wrong path name by basename(dirname(__FILE__))
-		$this->data_loader_js_file	= $this->data_path."/js/tableSorter_plugin_loader.js";
+		$this->plugin_path = $this->wiki[path]."/plugins/sortableTable";		// parental class has wrong path name by basename(dirname(__FILE__))
+		$this->data_loader_js_file	= $this->data_path."/js/sortableTable_plugin_loader.js";
 		$this->data_plugin_js_file	= $this->data_path."/js/jquery.tablesorter.min.js";
-		$this->data_css_file		= $this->data_path."/css/tableSorter.css";
-		$this->data_css_img_path	= $this->data_path."/css/tableSorter";	
+		$this->data_css_file		= $this->data_path."/css/sortableTable.css";
+		$this->data_css_img_path	= $this->data_path."/css/sortableTable";	
 	}	  	
 
 	/**
@@ -36,7 +36,7 @@ class NarinPluginInfoTableSorter extends NarinPluginInfo {
 	 */
 	public function description()
 	{
-		return "Sortable table 플러그인 (저자 : Jin Jun, jinjunkr@gmail.com)";
+		return "Sortable Table 플러그인 (저자 : Jin Jun, jinjunkr@gmail.com)";
 	}
 	
 	
@@ -145,7 +145,7 @@ table.tablesorter thead tr th, table.tablesorter tfoot tr th {
 	padding: 2px 20px 2px 5px !important;
 }
 table.tablesorter thead tr .header {
-	background-image: url(tableSorter/bg.gif);
+	background-image: url(sortableTable/bg.gif);
 	background-repeat: no-repeat;
 	background-position: center right;
 	cursor: pointer;
@@ -155,10 +155,10 @@ table.tablesorter thead tr .unsortable {
 	padding: 2px 5px !important;
 }
 table.tablesorter thead tr .headerSortUp {
-	background-image: url(tableSorter/asc.gif);
+	background-image: url(sortableTable/asc.gif);
 }
 table.tablesorter thead tr .headerSortDown {
-	background-image: url(tableSorter/desc.gif);
+	background-image: url(sortableTable/desc.gif);
 }
 table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp {
 	background-color: #8dbdd8;

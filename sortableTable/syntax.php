@@ -1,12 +1,12 @@
 <?
 /**
- * 나린위키 tableSorter 플러그인 : 플러그인 정보 클래스
+ * 나린위키 sortableTable 플러그인 : 플러그인 정보 클래스
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Jin Jun (jinjunkr@gmail.com)
  */
  
-class NarinSyntaxTableSorter extends NarinSyntaxPlugin {
+class NarinSyntaxSortableTable extends NarinSyntaxPlugin {
 
 	var $blocks = array();
 	var $table_opened = false;
@@ -30,20 +30,20 @@ class NarinSyntaxTableSorter extends NarinSyntaxPlugin {
 		$setting = $this->plugin_info->getPluginSetting();		
 		
 		$parser->addLineParser(
-			$id = $this->plugin_info->getId()."_wiki_tableSorter",
+			$id = $this->plugin_info->getId()."_wiki_sortableTable",
 			$klass = $this,
 			$regx = '^\((\^|\|)(.*?)(\^|\|)\)$',
-			$method = "wiki_tableSorter");
+			$method = "wiki_sortableTable");
 
-		$parser->addEvent(EVENT_AFTER_PARSING_ALL, $this, "wiki_tableSorter_after_all");
-		$parser->addEvent(EVENT_AFTER_PARSING_LINE, $this, "wiki_tableSorter_after_parsing_line");
+//		$parser->addEvent(EVENT_AFTER_PARSING_ALL, $this, "wiki_sortableTable_after_all");
+		$parser->addEvent(EVENT_AFTER_PARSING_LINE, $this, "wiki_sortableTable_after_parsing_line");
 	}
 	
 	
 	/**
 	 * 라인 파싱을 모두 마치고
 	 */
-	public function wiki_tableSorter_after_all($params)
+	public function wiki_sortableTable_after_all($params)
 	{
 		// 열린 table 이 있다면, 닫아줌
 		if($this->table_opened) {
@@ -54,11 +54,11 @@ class NarinSyntaxTableSorter extends NarinSyntaxPlugin {
 	/**
 	 * 한 라인 파싱을 마치고
 	 */		
-	public function wiki_tableSorter_after_parsing_line($params)
+	public function wiki_sortableTable_after_parsing_line($params)
 	{
 		// 이전 라인에서 목록을 열었으면.. 닫음
-		if ($this->table_opened && !$params[called][$this->plugin_info->getId()."_wiki_tableSorter"]) {
-			$params[line] = $this->wiki_tableSorter(false, array(), true) . $params[line];
+		if ($this->table_opened && !$params[called][$this->plugin_info->getId()."_wiki_sortableTable"]) {
+			$params[line] = $this->wiki_sortableTable(false, array(), true) . $params[line];
 		}
     }
     
@@ -73,10 +73,8 @@ class NarinSyntaxTableSorter extends NarinSyntaxPlugin {
 	 * 		(| c | 4  | 1492-12-08 | be      |)
 	 * 		(| e | 0  | 1601-08-13 | sorted. |)
 	 */	
-	public function wiki_tableSorter($matches, $params, $close = false) 
+	public function wiki_sortableTable($matches, $params, $close = false) 
 	{
-//		include_once("inc.js_css.php");
-		
   		if($close) {
 			$this->table_opened = false;
 			return "</table> <!--// wiki_table -->\n";
@@ -138,6 +136,7 @@ class NarinSyntaxTableSorter extends NarinSyntaxPlugin {
 	
 		$out .= "</tr>\n";
 		if($this->table_theadOpened) $out .= "</thead>\n";
+		$this->table_theadOpened = false;
 		$this->table_opened = true;
 		$parser->stop = true;
 		return $out;
