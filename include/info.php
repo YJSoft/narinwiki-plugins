@@ -4,6 +4,8 @@
  *
  * 사용법: 	{{page=/home/welcome}}	- /home/welcome 문서 전체를 포함
  * 			{{page=/home/welcome#special}}  - /home/welcome의 special 섹션만 포함
+ * 			{{page=/home/nocache?box=no}}	- include without box container, and print no error if any
+ * 											default: box=yes
  * 
  * 주의: 포함대상 문서는 cache 되어 있어야 함.
  * 

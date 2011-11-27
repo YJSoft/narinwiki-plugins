@@ -41,6 +41,7 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 	 * include 처리
 	 * @format {{page=/home/welcome}}
 	 * @format {{page=/home/welcome#special}}
+	 * @format {{page=/home/nocache?box=no}}
 	 */	
 	public function wiki_include($matches, $params) 
 	{
@@ -82,17 +83,30 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		$d = $wikiArticle->getArticle($loc, $docname);
 		if($this->member[mb_level] < $d[access_level]) return "";
 
-		$prefix = "<div style='border:1px gray dotted; padding:5px;'><div style='padding:5px 10px;background-color:#f8f8f8;'>Include된 문서: "
+		if($box === "no") {		// parameter box
+			$prefix = "";
+			$postfix = "";
+		}else {
+			$prefix = "<div style='border:1px gray dotted; padding:5px;'>"
+					."<div style='padding:5px 10px;background-color:#f8f8f8;'>Include된 문서: "
 		            .$matches[1]."</div>";
-		$postfix = "</div>";
+			$postfix = "</div>";
+		}
 		
 		// cannot include itself
-		if($this->doc == $path) return $prefix."<div style='color:red;'>자기자신은 include 할 수 없습니다.</div>".$postfix;
+		if($this->doc == $path) {
+			if($box === "no") return "";		// parameter box
+			else return $prefix."<div style='color:red;padding:5px;'>자기자신은 include 할 수 없습니다.</div>".$postfix;
+		}
 
 		// get current cache to avoid infinite loop parsing..
 		$wikiCache = wiki_class_load("Cache");
-		$content = $wikiCache->get($d[wr_id]);
-		if(!$content) return $prefix."<div style='color:red;'>include 대상 문서가 cache되지 않았습니다. cache된 문서만 include가 가능합니다.</div>".$postfix;
+		$content = $wikiCache->get($d['wr_id']);
+		$nocache = preg_match("/~~NOCACHE~~/", $d['wr_content']);
+		if(!$content || $nocache) {
+			if($box === "no") return "";		// parameter box
+			else return $prefix."<div style='color:red;padding:5px;'>include 대상 문서가 cache되지 않았습니다. cache된 문서만 include가 가능합니다.</div>".$postfix;
+		}
 		
 		// only capture the specific section using $secname
 		if($secname) {
