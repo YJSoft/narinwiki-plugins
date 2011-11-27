@@ -75,7 +75,7 @@ class NarinSyntaxTableSorter extends NarinSyntaxPlugin {
 	 */	
 	public function wiki_tableSorter($matches, $params, $close = false) 
 	{
-		include_once("inc.js_css.php");
+//		include_once("inc.js_css.php");
 		
   		if($close) {
 			$this->table_opened = false;
