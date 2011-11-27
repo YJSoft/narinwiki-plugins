@@ -1,3 +1,6 @@
 code/*
 html/*
 lock/*
+
+syntax: glob
+*.zip
