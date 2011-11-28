@@ -78,11 +78,6 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		$n = $wikiNS->get($loc);
 		if($this->member[mb_level] < $n[ns_access_level]) return "";
 		
-		// page access level check
-		$wikiArticle = wiki_class_load("Article");
-		$d = $wikiArticle->getArticle($loc, $docname);
-		if($this->member[mb_level] < $d[access_level]) return "";
-
 		if($box === "no") {		// parameter box
 			$prefix = "";
 			$postfix = "";
@@ -92,6 +87,16 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		            .$matches[1]."</div>";
 			$postfix = "</div>";
 		}
+		
+		$wikiArticle = wiki_class_load("Article");
+		$d = $wikiArticle->getArticle($loc, $docname);
+		if(!$d) {	// no such article
+			if($box === "no") return "";		// parameter box
+			else return $prefix."<div style='color:red;padding:5px;'>없는 문서입니다. </div>".$postfix;
+		}
+			
+		// page access level check
+		if($this->member[mb_level] < $d[access_level]) return "";
 		
 		// cannot include itself
 		if($this->doc == $path) {

@@ -35,7 +35,7 @@ class NarinSyntaxSortableTable extends NarinSyntaxPlugin {
 			$regx = '^\((\^|\|)(.*?)(\^|\|)\)$',
 			$method = "wiki_sortableTable");
 
-//		$parser->addEvent(EVENT_AFTER_PARSING_ALL, $this, "wiki_sortableTable_after_all");
+		$parser->addEvent(EVENT_AFTER_PARSING_ALL, $this, "wiki_sortableTable_after_all");
 		$parser->addEvent(EVENT_AFTER_PARSING_LINE, $this, "wiki_sortableTable_after_parsing_line");
 	}
 	
