@@ -89,7 +89,7 @@ class NarinPluginInfoSortableTable extends NarinPluginInfo {
 		if(!is_dir($this->data_css_img_path)) {
 			if(is_file($this->data_css_img_path)) @unlink($this->data_css_img_path);
 
-			mkdir($this->data_css_img_path, 777);
+			mkdir($this->data_css_img_path, 0777);
 		}
 		copy($this->plugin_path."/inc/blue/asc.gif", $this->data_css_img_path."/asc.gif");
 		copy($this->plugin_path."/inc/blue/desc.gif", $this->data_css_img_path."/desc.gif");
