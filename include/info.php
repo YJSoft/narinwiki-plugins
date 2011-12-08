@@ -2,10 +2,19 @@
 /**
  * 나린위키 Include 플러그인 : 플러그인 정보 클래스
  *
- * 사용법: 	{{page=/home/welcome}}	- /home/welcome 문서 전체를 포함
+ * Narinwiki porting of Dokuwiki include plugin (http://www.dokuwiki.org/plugin:include)
+ * 
+ * 사용법: 	{{page=/home/welcome}}			- /home/welcome 문서 전체를 포함
  * 			{{page=/home/welcome#special}}  - /home/welcome의 special 섹션만 포함
  * 			{{page=/home/nocache?box=no}}	- include without box container, and print no error if any
  * 											default: box=yes
+ * 
+ * 계획중인 flags	-> usage: {{page=/home/wiki?box=no&nocontainer}}
+ * 			nocontainer		== box=no
+ * 			firstseconly	shows first seciton only
+ * 			showfooter		include included page info in the footer section	== footer=yes	
+ * 			noheades		strips the title from the included page
+ * 			comments		include first N comments	== comments=5
  * 
  * 주의: 포함대상 문서는 cache 되어 있어야 함.
  * 

@@ -82,24 +82,25 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 			$prefix = "";
 			$postfix = "";
 		}else {
-			$prefix = "<div style='border:1px gray dotted; padding:5px;'>"
+			$prefix = "<div style='border:1px gray dotted; padding:5px; overflow:auto;'>"
 					."<div style='padding:5px 10px;background-color:#f8f8f8;'>Include된 문서: "
 		            .$matches[1]."</div>";
 			$postfix = "</div>";
 		}
 		
 		$wikiArticle = wiki_class_load("Article");
-		$d = $wikiArticle->getArticle($loc, $docname);
-		if(!$d) {	// no such article
+		if(!$wikiArticle->exists($loc, $docname)) {
 			if($box === "no") return "";		// parameter box
 			else return $prefix."<div style='color:red;padding:5px;'>없는 문서입니다. </div>".$postfix;
 		}
 			
+		$d = $wikiArticle->getArticle($loc, $docname);
 		// page access level check
 		if($this->member[mb_level] < $d[access_level]) return "";
 		
 		// cannot include itself
-		if($this->doc == $path) {
+		$thisDoc = $this->doc.$this->board[bo_subject];	//TODO: should be better way..
+		if($this->doc === $path) {
 			if($box === "no") return "";		// parameter box
 			else return $prefix."<div style='color:red;padding:5px;'>자기자신은 include 할 수 없습니다.</div>".$postfix;
 		}
@@ -115,6 +116,7 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		
 		// only capture the specific section using $secname
 		if($secname) {
+			//TODO: need to check if this secname is exists
 			$pattern = '/<h(\d)>'.$secname.'<\/h\1>(.*?)<!--\/\/ section \1 -->/s';
 			preg_match($pattern, $content, $matches);
 			$content = $matches[0];
