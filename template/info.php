@@ -18,6 +18,7 @@ class NarinPluginInfoTemplate extends NarinPluginInfo {
 	public function __construct() {
 		$this->id = "wiki_template";		
 		parent::__construct();
+		$this->init();
 	}	  	
 
 	/**

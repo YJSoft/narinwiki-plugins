@@ -11,6 +11,15 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 	var $blocks = array();
 	var $allow_level;
 	var $writer_level = -1;
+	var $setting_nocontainer;
+	var $nocontainer;
+	var $setting_range;
+	// "전체문서와 댓글" => "E",	everything -_-
+	// "전체문서" => "W",	whole page
+	// "첫문단만" => "FS",	first section only
+	var $include_range = "W";	// default
+	var $firstseconly;
+	
 		  	
 	/**
 	 * 파싱 시작되기 전에 변수 초기화
@@ -28,6 +37,12 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 	{
 		$setting = $this->plugin_info->getPluginSetting();		
 		$this->allow_level = $setting[allow_level][value];
+		$this->setting_nocontainer = $setting[setting_nocontainer][value];
+		
+		$this->setting_range = $setting[setting_range][value];
+		if($this->setting_range === "전체문서와 댓글") $this->include_range = "E";
+		elseif($this->setting_range === "전체문서") $this->include_range = "W";
+		elseif($this->setting_range === "첫문단만") $this->include_range = "FS";
 		
 		$parser->addVariableParser(
 			$id = $this->plugin_info->getId()."_wiki_include", 
@@ -41,7 +56,7 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 	 * include 처리
 	 * @format {{page=/home/welcome}}
 	 * @format {{page=/home/welcome#special}}
-	 * @format {{page=/home/nocache?box=no}}
+	 * @format {{page=/home/welcome?nocontainer}}
 	 */	
 	public function wiki_include($matches, $params) 
 	{
@@ -60,7 +75,12 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		if($m[5]) $secname = $m[5];
 		$path = $m[1].$m[3];
 		
-		if($matches[4]) parse_str(str_replace("&amp;", "&", $matches[4]));	// not used yet
+		if($matches[4]) parse_str(str_replace("&amp;", "&", $matches[4]));
+		
+		// plugin settings and alternative flags
+		$this->nocontainer = false;		// init
+		if($this->setting_nocontainer && ($box === "no" || isset($nocontainer)) ) $this->nocontainer = true;
+		if(isset($firstseconly) || isset($fso)) $this->firstseconly = true;
 		
 		// 작성자 레벨 셋팅
 		if($this->writer_level < 0) {
@@ -78,7 +98,7 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		$n = $wikiNS->get($loc);
 		if($this->member[mb_level] < $n[ns_access_level]) return "";
 		
-		if($box === "no") {		// parameter box
+		if($this->nocontainer) {		// flag box=no OR nocontainer
 			$prefix = "";
 			$postfix = "";
 		}else {
@@ -90,8 +110,7 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		
 		$wikiArticle = wiki_class_load("Article");
 		if(!$wikiArticle->exists($loc, $docname)) {
-			if($box === "no") return "";		// parameter box
-			else return $prefix."<div style='color:red;padding:5px;'>없는 문서입니다. </div>".$postfix;
+			return $this->error_msg("nonexist", $prefix, $postfix);
 		}
 			
 		$d = $wikiArticle->getArticle($loc, $docname);
@@ -100,28 +119,35 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		
 		// cannot include itself
 		$thisDoc = $this->doc.$this->board[bo_subject];	//TODO: should be better way..
-		if($this->doc === $path) {
-			if($box === "no") return "";		// parameter box
-			else return $prefix."<div style='color:red;padding:5px;'>자기자신은 include 할 수 없습니다.</div>".$postfix;
+		if($this->doc === $path || $thisDoc === $path) {
+			return $this->error_msg("self", $prefix, $postfix);
 		}
 
-		// get current cache to avoid infinite loop parsing..
+		// get the current cache to avoid infinite loop parsing..
 		$wikiCache = wiki_class_load("Cache");
 		$content = $wikiCache->get($d['wr_id']);
 		$nocache = preg_match("/~~NOCACHE~~/", $d['wr_content']);
 		if(!$content || $nocache) {
-			if($box === "no") return "";		// parameter box
-			else return $prefix."<div style='color:red;padding:5px;'>include 대상 문서가 cache되지 않았습니다. cache된 문서만 include가 가능합니다.</div>".$postfix;
+			return $this->error_msg("nocache", $prefix, $postfix);
+		}
+
+		if($this->include_range === "FS" || $this->firstseconly) {
+			//TODO::  replace $secname with the first sec name if any
+			$pattern = '/<h(\d)>(.*?)<\/h\1>/s';
+			if(preg_match($pattern, $content, $matches)) {
+				$secname = $matches[2];
+			}
 		}
 		
 		// only capture the specific section using $secname
 		if($secname) {
-			//TODO: need to check if this secname is exists
-			$pattern = '/<h(\d)>'.$secname.'<\/h\1>(.*?)<!--\/\/ section \1 -->/s';
-			preg_match($pattern, $content, $matches);
-			$content = $matches[0];
+			$pattern = '/<h(\d)>'.$secname.'<\/h\1>(.*?)<!--\/\/ section \1 -->/s';		// this is dependent on narinwiki annotatin..-_-
+			if(preg_match($pattern, $content, $matches)) {
+				$content = $matches[0];
+			} else {
+				return $this->error_msg("nosec", $prefix, $postfix);
+			}
 		}
-		
 		// remove narin_contents (out most div), wiki_toc and <a name=..></a> tag
 		else {
 			$pattern = '/^<div class=\'narin_contents\'>|<div id=\'wiki_toc\'>.*<!--\/\/ wiki_toc -->|<a name[^<]*><\/a>|<\/div>$/s';
@@ -129,6 +155,20 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		}
 
 		return $prefix.$content.$postfix;
+	}
+	
+	function error_msg($type, $prefix, $postfix)
+	{
+		if($this->nocontainer) return "";
+		else {
+			$msg = "문제가 발생했습니다.";
+			if($type === "nonexist") $msg = "없는 문서입니다.";
+			elseif ($type === "self") $msg = "자기자신은 include 할 수 없습니다.";
+			elseif ($type === "nocache") $msg = "include 대상 문서가 cache되지 않았습니다. cache된 문서만 include가 가능합니다.";
+			elseif ($type === "nosec") $msg = "include 대상 section이 없습니다.";
+				
+			return $prefix."<div style='color:red;padding:5px;'>".$msg."</div>".$postfix;
+		}
 	}
 }
 

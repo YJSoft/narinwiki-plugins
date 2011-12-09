@@ -18,6 +18,7 @@ class NarinPluginInfoExtendedVariables extends NarinPluginInfo {
 	public function __construct() {
 		$this->id = "wiki_extended_variables";		
 		parent::__construct();
+		$this->init();
 	}	  	
 
 	/**

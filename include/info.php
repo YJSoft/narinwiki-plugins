@@ -6,14 +6,14 @@
  * 
  * 사용법: 	{{page=/home/welcome}}			- /home/welcome 문서 전체를 포함
  * 			{{page=/home/welcome#special}}  - /home/welcome의 special 섹션만 포함
- * 			{{page=/home/nocache?box=no}}	- include without box container, and print no error if any
- * 											default: box=yes
+ * 			{{page=/home/welcome?nocontainer}}	- include without a container, and print no error if any
+ * 			{{page=/home/welcome?firstseconly}}	- include the first sec only if any.  this ignores the #sec option
  * 
- * 계획중인 flags	-> usage: {{page=/home/wiki?box=no&nocontainer}}
- * 			nocontainer		== box=no
- * 			firstseconly	shows first seciton only
+ * 계획중인 flags	-> usage: {{page=/home/wiki?flag1&setting2=flag2}}
+ * 			showtoc			integrate the TOC of the included content to the current TOC
+ * 			noindent		shows included content without indentation	== nocontainer&showtoc
  * 			showfooter		include included page info in the footer section	== footer=yes	
- * 			noheades		strips the title from the included page
+ * 			noheaders		strips the title from the included page
  * 			comments		include first N comments	== comments=5
  * 
  * 주의: 포함대상 문서는 cache 되어 있어야 함.
@@ -30,6 +30,7 @@ class NarinPluginInfoInclude extends NarinPluginInfo {
 	public function __construct() {
 		$this->id = "wiki_include";		
 		parent::__construct();
+		$this->init();
 	}	  	
 
 	/**
@@ -45,7 +46,9 @@ class NarinPluginInfoInclude extends NarinPluginInfo {
 	 */
 	public function getSetting() {
 		return array(
-			"allow_level"=>array("type"=>"select", "label"=>"플러그인 사용 권한", "desc"=>"설정된 권한보다 낮은 레벨의 사용자가 작성한 문서의 include는 무시됩니다.", "options"=>array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), "value"=>2)
+			"allow_level"=>array("type"=>"select", "label"=>"플러그인 사용 권한", "desc"=>"설정된 권한보다 낮은 레벨의 사용자가 작성한 문서의 include는 무시됩니다.", "options"=>array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), "value"=>2),
+			"setting_nocontainer"=>array("type"=>"checkbox", "label"=>"nocontainer 허용", "desc"=>"이를 허용하지 않으면, 개별 nocontainer 옵션은 무시됩니다.", "value"=>1),
+			"setting_range"=>array("type"=>"select", "label"=>"include 허용 범위 지정", "desc"=>"설정된 범위보다 작은 범위만 허용합니다. (댓글포함은 아직 지원되지 않습니다)", "options"=>array("전체문서와 댓글","전체문서","첫문단만"), "value"=>2)
 		);		
 	}
 }

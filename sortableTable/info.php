@@ -24,6 +24,7 @@ class NarinPluginInfoSortableTable extends NarinPluginInfo {
 	public function __construct() {
 		$this->id = "wiki_sortableTable";
 		parent::__construct();
+		$this->init();
 		$this->plugin_path = $this->wiki[path]."/plugins/sortableTable";		// parental class has wrong path name by basename(dirname(__FILE__))
 		$this->data_loader_js_file	= $this->data_path."/js/sortableTable_plugin_loader.js";
 		$this->data_plugin_js_file	= $this->data_path."/js/jquery.tablesorter.min.js";
