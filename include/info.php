@@ -10,14 +10,11 @@
  * 			{{page=/home/welcome?firstseconly}}	- include the first sec only if any.  this ignores the #sec option
  * 
  * 계획중인 flags	-> usage: {{page=/home/wiki?flag1&setting2=flag2}}
- * 			showtoc			integrate the TOC of the included content to the current TOC
- * 			noindent		shows included content without indentation	== nocontainer&showtoc
- * 			showfooter		include included page info in the footer section	== footer=yes	
- * 			noheaders		strips the title from the included page
  * 			comments		include first N comments	== comments=5
  * 
- * 주의: 포함대상 문서는 cache 되어 있어야 함.
  * 
+ * @package	   narinwiki
+ * @subpackage plugin
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Jin Jun (jinjunkr@gmail.com)
  */
@@ -25,6 +22,7 @@
 class NarinPluginInfoInclude extends NarinPluginInfo {
 
 	/**
+	 * 
 	 * 생성자
 	 */		  	
 	public function __construct() {
@@ -34,7 +32,10 @@ class NarinPluginInfoInclude extends NarinPluginInfo {
 	}	  	
 
 	/**
+	 * 
 	 * 플러그인 설명
+	 * 
+	 * @return string 플러그인설명
 	 */
 	public function description()
 	{
@@ -42,7 +43,10 @@ class NarinPluginInfoInclude extends NarinPluginInfo {
 	}
 		
 	/**
+	 * 
 	 * 플러그인 설정
+	 * 
+	 * @return array 플러그인 설정 정보
 	 */
 	public function getSetting() {
 		return array(
