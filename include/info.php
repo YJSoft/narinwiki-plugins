@@ -8,6 +8,9 @@
  * 			{{page=/home/welcome#special}}  - /home/welcome의 special 섹션만 포함
  * 			{{page=/home/welcome?nocontainer}}	- include without a container, and print no error if any
  * 			{{page=/home/welcome?firstseconly}}	- include the first sec only if any.  this ignores the #sec option
+ * 			{{page=/home/welcome?random=element}}	- include random element in /home/welcome page or /home/welcome/ folder. 
+ * 											element could be section_# for section, wiki_table, wiki_code, wiki_box
+ * 											e.g. random=wikibox : include random wikibox esp. designed for nextpeople.kr
  * 
  * 계획중인 flags	-> usage: {{page=/home/wiki?flag1&setting2=flag2}}
  * 			comments		include first N comments	== comments=5

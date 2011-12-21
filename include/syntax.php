@@ -152,7 +152,8 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		if($m[2]) $loc = $m[2];
 		$docname = $m[3];
 		if($m[5]) $secname = $m[5];
-		$path = $m[1].$m[3];
+//		$path = $m[1].$m[3];
+		$path = wiki_doc($loc, $docname);		// better way
 		
 		// parse options
 		if($matches[4]) parse_str(str_replace("&amp;", "&", $matches[4]));
@@ -215,6 +216,36 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 				$secname = $matches[2];
 			}
 		}		
+		
+		// random=element 처리
+		if(isset($random)) {
+			// element can be section_# for section, wiki_table, wiki_code, wiki_box
+			if($random === "wiki_box") {
+				$matches = array();
+				$lines = explode("\n", $d['wr_content']);
+				$pattern = '/^\s{2,}(.*?)$/';
+				foreach ($lines as $k=>$line)
+				{
+					if(preg_match($pattern, $line, $match) && strlen($match[1])>0 ) {
+						array_push($matches, $match);
+					}
+				}
+				
+				$n = count($matches);
+				if($n==0) return $prefix."해당 element가 없습니다.".$postfix;
+				$rndKey = array_rand($matches);
+
+				$d['wr_content'] = $matches[$rndKey][0];
+				$wikiParser = new NarinParser();
+				$content = $wikiParser->parse($d);
+				
+				$content = $this->treat_footnotes(&$params, $content);
+				$pattern = '/^<div class=\'narin_contents\'>|<div id="wiki_footnotes">.*<\/div>$|<\/div>$/s';
+				$content = preg_replace($pattern, "", $content);
+				
+				return $prefix.$content.$postfix;
+			}
+		}
 		
 		// extract specific section with given secname
 		if($secname) {
