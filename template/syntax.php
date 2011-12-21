@@ -38,6 +38,20 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 			$start_regx = 'template=',
 			$end_regx = '((\?)(.*?))?',
 			$method = "wiki_template");
+		
+		// some extra tags only works when it's templated
+		$parser->addBlockParser(
+			$id = $this->plugin_info->getId()."_wiki_includeonly",
+			$klass = $this,
+			$startRegx = "&lt;includeonly&gt;",
+			$endRegx = "&lt;\/includeonly&gt;",
+			$method = "wiki_includeonly");
+		
+		$parser->addWordParser(
+			$id = $this->plugin_info->getId()."_wiki_ignoretags",
+			$klass = $this,
+			$regx = "~~CLOSEALL~~",
+			$method = "wiki_ignoretags");
 	}
 
 	/**
@@ -68,7 +82,7 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 			$list = explode("&", str_replace("&amp;", "&", $matches[4]));
 			foreach($list as $el) {
 				$pair = explode("=", $el);
-				array_push($parameters, "/@".$pair[0]."@/");
+				array_push($parameters, "/@@".$pair[0]."@@/");
 				array_push($values, $pair[1]);
 			}
 		}
@@ -97,17 +111,29 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 //		$prefix = "<div style='border:1px gray dotted; padding:5px;'><div style='padding:5px 10px;background-color:#f8f8f8;'>사용된 틀: "
 //		            .$matches[1]."</div>";
 //		$postfix = "</div>";
+		$prefix = "<div class='wiki_template'>";
+		$postfix = "</div>";
 		
 		// cannot include itself, just in case
-		if($this->doc == $path) return $prefix."<div style='color:red;'>자기자신은 include 할 수 없습니다.</div>".$postfix;
+		//if($this->doc == $path) return $prefix."<div style='color:red;'>자기자신은 include 할 수 없습니다.</div>".$postfix;
 
+		// close all open tags
+		if(preg_match('/~~CLOSEALL~~/', $t[wr_content])) {
+			$prefix = $this->get_close(&$params).$prefix;
+			$t[wr_content] = preg_replace('/~~CLOSEALL~~/', '', $t[wr_content]);
+		}
+		
+		// includeonly
+		if(preg_match('/<includeonly>(.*?)<\/includeonly>/s', $t[wr_content], $includeonly)) {
+			$t[wr_content] = $includeonly[1];
+		}
+		
 		// replacing
 		$t[wr_content] = preg_replace($parameters, $values, $t[wr_content]);
 		// delete any missing @--@s
 		// TODO: need to delete any associate filed, e.g. <tr><th>title</th><td>@param@</td></tr>
-		$t[wr_content] = preg_replace("/@[^@]*@/","",$t[wr_content]);
-		$content = $t[wr_content];
-
+		$t[wr_content] = preg_replace("/@@[^@]*@@/","",$t[wr_content]);
+		
 		// parse the replaced template
 //		$wikiParser = wiki_class_load("Parser");
 		$wikiParser = new NarinParser();
@@ -119,5 +145,68 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 
 		return $prefix.$content.$postfix;
 	}
+	
+	/**
+	 *
+	 * 기본 문법 해석기의 열린 태그 닫음 (copy from column plugin - get_close()
+	 *   - section, table, p, ul, ol 등의 태그가 열려있으면 닫아줌 (~~CLOSEALL~~)
+	 *
+	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터
+	 * @return string 닫는 태그
+	 */
+	public function get_close($params) {
+		$plugins = &$params['plugins'];
+		$default = &$plugins[array_search('wiki_default_parser', $plugins)];
+
+		$close_tag = '';
+		
+		if ($default->list_level>0)
+		{
+			$close_tag .= $default->wiki_list(false, array(), '', '', true);
+		}
+		if ($default->boxformat)
+		{
+			$close_tag .= $default->wiki_box(false, array(), true);
+		}
+		if ($default->pformat)
+		{
+			$close_tag .= $default->wiki_par(false, array(), true);
+		}
+		if ($default->table_opened)
+		{
+			$close_tag .= $default->wiki_table(false, array(), true);
+		}
+		
+		while($pSection = array_pop($default->sections)) {
+			$close_tag .= $pSection['close_tag'];
+		}			
+				
+		return $close_tag;						
+	}
+
+	/**
+	 *
+	 * ignore <includeonly> tag.. only affecting when templated
+	 *
+	 * @param array $matches 패턴매칭 결과
+	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터
+	 * @return string 닫는 태그
+	 */
+	public function wiki_includeonly($matches, $params) {
+		return $matches[1];
+	}
+	
+	/**
+	 *
+	 * ignore any extra tags.. only affecting when templated
+	 *
+	 * @param array $matches 패턴매칭 결과
+	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터
+	 * @return string 닫는 태그
+	 */
+	public function wiki_ignoretags($matches, $params) {
+		return "";
+	}
+	
 }
 ?>
