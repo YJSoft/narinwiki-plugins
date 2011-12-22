@@ -58,9 +58,9 @@ class NarinPluginInfoData extends NarinPluginInfo {
 					"options"=>array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), 
 					"value"=>2),
 			"template_ns"=>array("type"=>"text", 
-					"label"=>"틀(template) 폴더 ", 
-					"desc"=>"예를 들어, '/틀'로 지정하면, ---- dataentry project ---- 가 '/틀/project' 문서틀로 보입니다. 
-					이 기능을 사용하려면 template 플러그인이 설치되어 있어야 합니다.", 
+					"label"=>"문서틀 폴더 ", 
+					"desc"=>"예를 들어, '/틀'로 지정하면, ---- dataentry project ---- 로 입력된 내용이 '/틀/project' 문서틀을 사용해서 보입니다. 
+					이 기능을 사용하려면 문서틀(template) 플러그인이 설치되어 있어야 합니다.", 
 					"value"=>"/틀"),
 		);
 	}

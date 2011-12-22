@@ -6,6 +6,8 @@
  * 					- /틀/상자 틀에 정의된 @제목@ 과 @내용@ 을 주어진 파라미터로 채우고, 
  * 					  /틀/상자 에서 정의된 방법으로 표현한후 문서에 포함 (예, float:right 박스)
  * 
+ * @package	   narinwiki
+ * @subpackage plugin
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Jin Jun (jinjunkr@gmail.com)
  */
@@ -22,15 +24,19 @@ class NarinPluginInfoTemplate extends NarinPluginInfo {
 	}	  	
 
 	/**
+	 * 
 	 * 플러그인 설명
+	 * 
+	 * @return string 플러그인 설명
 	 */
 	public function description()
-	{
+		{
 		return "Template 플러그인 (저자 : Jin Jun, jinjunkr@gmail.com)";
 	}
 		
 	/**
-	 * 플러그인 설정
+	 *
+	 * @see lib/NarinPluginInfo::getSetting()
 	 */
 	public function getSetting() {
 		return array(

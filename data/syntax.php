@@ -182,24 +182,47 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 		if($matches[4]) { 
 			$list = explode("&", str_replace("&amp;", "&", $matches[4]));
 			foreach($list as $el) {
-				// for now no other operator
-				$pair = explode("=", $el);
-				if(!$pair[1])	{	// keyword parameter
-					$filter_keyword = "keyword ='".$pair[0]."'";
+				$op_pattern = '/^(.*?)((=|\!=|&lt;&gt;|&lt;|&lt;=|=&gt;|&gt;|\~|\!\~)(.*))?$/s';
+				preg_match($op_pattern, $el, $op_matches);
+				$col = $op_matches[1];
+				$val = $op_matches[4];
+				$op  = $op_matches[3];
+				$not = "";
+				if(!$op_matches[2]) {	// no comparison.. so class
+					$col = 'class';
+					$op = '=';
+					$val = $op_matches[1];
 				}else {
-					array_push($filters, array("col"=>$pair[0], "val"=>$pair[1]));
+					if($op=='~') {	// wildcard
+						$op = 'LIKE';
+						$val = preg_replace('/\*/', '%', $val);
+					}elseif($op=='!~') {	// wildcard
+						$op = 'LIKE';
+						$not = 'NOT';
+						$val = preg_replace('/\*/', '%', $val);
+					}elseif($op=='!=' || $op=='<>') {
+						$op = '=';
+						$not = 'NOT';
+					}else {
+						$op = preg_replace('/&lt;/','<',$op);
+						$op = preg_replace('/&gt;/','>',$op);
+					}
 				}
+				 
+				if($col == 'class') {
+					$keyword = 'class';
+					$filter_keyword = $not." keyword ".$op." '".$val."' ";
+				}
+				else array_push($filters, "(col = '".$col."' AND ".$not." val ".$op." '".$val."')");
 			}
 		}
 		
 		// filtering
-		$filter_where = "";
-		foreach($filters as $filter) {
-			$filter_where .= " AND col='".$filter['col']."' AND val = '".$filter['val']."'";
-		}
+		$filter_where = "1";
+		if(count($filters)) $filter_where = implode(' AND ', $filters);
 		
 		$sql_wr_id = "SELECT DISTINCT wr_id FROM ".$this->db_table."
-								WHERE bo_table='".$this->bo_table."' AND ".$filter_keyword.$filter_where;
+								WHERE bo_table='".$this->bo_table."' AND ".$filter_keyword." AND ".$filter_where;
 		$res_wr_id = sql_query($sql_wr_id);
 		return " ".mysql_num_rows($res_wr_id)." ";
 	}
@@ -273,13 +296,32 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 				case 'where':
 				case 'fiterand':
 				case 'and':
-					//TODO: !=, <>, <, >, ~ (wildcard)
-					$fkv = explode('=', $kv[1]);
-					if($fkv[0]=='class') {
-						$keyword = $fkv[1];
-						$filter_keyword = "keyword ='".$fkv[1]."'";
+					$op_pattern = '/^(.*?)(=|\!=|&lt;&gt;|&lt;|&lt;=|=&gt;|&gt;|\~|\!\~)(.*)$/s';
+					preg_match($op_pattern, $kv[1], $op_matches);
+					$col = $op_matches[1];
+					$val = $op_matches[3];
+					$op  = $op_matches[2];
+					$not = "";
+					if($op=='~') {	// wildcard
+						$op = 'LIKE';
+						$val = preg_replace('/\*/', '%', $val);
+					}elseif($op=='!~') {	// wildcard
+						$op = 'LIKE';
+						$not = 'NOT';
+						$val = preg_replace('/\*/', '%', $val);
+					}elseif($op=='!=' || $op=='<>') {
+						$op = '=';
+						$not = 'NOT';
+					}else {
+						$op = preg_replace('/&lt;/','<',$op);
+						$op = preg_replace('/&gt;/','>',$op);
 					}
-					else array_push($filters, array("col"=>$fkv[0], "val"=>$fkv[1]));
+					 
+					if($col == 'class') {
+						$keyword = 'class';
+						$filter_keyword = $not." keyword ".$op." '".$val."' ";
+					}
+					else array_push($filters, "(col = '".$col."' AND ".$not." val ".$op." '".$val."')");
 					break;
 				case 'sort':
 				case 'order':
@@ -300,14 +342,12 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 		$list_sort = array();
 		
 		// filtering
-		$filter_where = "";
-		foreach($filters as $filter) {
-			$filter_where .= " AND col='".$filter['col']."' AND val = '".$filter['val']."'";
-		}
-		
+		$filter_where = "1";
+		if(count($filters)) $filter_where = implode(' AND ', $filters);
+				
 		// currently dataentry without keyword might have a problem to show
 		$sql_wr_id = "SELECT DISTINCT wr_id FROM ".$this->db_table." 
-						WHERE bo_table='".$this->bo_table."' AND ".$filter_keyword.$filter_where;
+						WHERE bo_table='".$this->bo_table."' AND ".$filter_keyword." AND ".$filter_where;
 		$res_wr_id = sql_query($sql_wr_id);
 		while($row_wr_id = sql_fetch_array($res_wr_id)) {
 			$data = array();
