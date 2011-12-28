@@ -1,0 +1,122 @@
+<?
+/**
+ * 
+ * 나린위키 semantic wiki 플러그인 : 플러그인 정보 클래스
+ *
+ * Narinwiki porting of Mediawiki Semantic wiki (http://en.wikipedia.org/wiki/Semantic_MediaWiki)
+ *
+ * @package	   narinwiki
+ * @subpackage plugin
+ * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
+ * @author     Jin Jun (jinjunkr@gmail.com)
+ */
+ 
+class NarinPluginInfoSemantic extends NarinPluginInfo {
+
+	/**
+	 *
+	 * @var string 사용되는 디비 테이블 이름
+	 */
+	var $db_table;
+	
+	/**
+	 * 생성자
+	 */
+	public function __construct() {
+		
+		parent::__construct();			
+		
+		$this->id = "wiki_semantic";				
+		
+		// {@link NarinPluginInfo} 클래스의 생성자에서 getSetting() 을 호출함		
+		$this->init();
+		$this->db_table = "byfun_narin_dataplugin";
+	}
+
+	/**
+	 * 
+	 * 플러그인 설명
+	 * 
+	 * @return string 플러그인 설명
+	 */
+	public function description()
+	{
+		return "Semantic wiki 플러그인 (저자 : Jin Jun, jinjunkr@gmail.com)";
+	}
+
+
+	/**
+	 *
+	 * @see lib/NarinPluginInfo::getSetting()
+	 */
+	public function getSetting() {
+		return array(
+			"entry_allow_level"=>array("type"=>"select", 
+					"label"=>"Semantic wiki 사용 권한", 
+					"desc"=>"설정된 권한보다 낮은 레벨의 사용자가 작성한 Semantic 정보는 무시됩니다.", 
+					"options"=>array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), 
+					"value"=>2)
+		);
+	}
+
+	
+	
+	/**
+	 * 
+	 * 플러그인 인스톨이 필요한가? (DB 추가작업)
+	 * 
+	 * @see lib/NarinPluginInfo::shouldInstall()
+	 */
+	public function shouldInstall() {
+		$sql = "SHOW TABLES LIKE '".$this->db_table."'";
+		$res = sql_query($sql);
+		if(mysql_num_rows($res)>0) return false;
+		else return true;
+	}
+	
+	/**
+	 * 
+	 * 플러그인 언인스톨해야 하나?
+	 * 
+	 * @see lib/NarinPluginInfo::shouldUnInstall()
+	 */
+	public function shouldUnInstall() {
+		$sql = "SHOW TABLES LIKE '".$this->db_table."'";
+		$res = sql_query($sql);
+		if(mysql_num_rows($res)>0) return true;
+		else return false;
+	}
+	
+	/**
+	 * 
+	 * 플러그인 설치
+	 * 
+	 * @see lib/NarinPluginInfo::install()
+	 */
+	public function install() {
+		$sql = "CREATE TABLE IF NOT EXISTS `".$this->db_table."` (
+				  `id` int(11) NOT NULL AUTO_INCREMENT,
+				  `bo_table` varchar(20) NOT NULL,
+				  `wr_id` int(11) NOT NULL,
+				  `keyword` varchar(50) NOT NULL,
+				  `col` varchar(50) NOT NULL,
+				  `val` varchar(255) NOT NULL,
+				  PRIMARY KEY (`id`),
+				  KEY `idx_board_wr_id` (`bo_table`,`wr_id`,`keyword`,`col`)
+				) ENGINE=MyISAM  DEFAULT CHARSET=utf8 ;";
+
+		sql_query($sql);
+	}
+	
+	/**
+	 * 
+	 * 플러그인 삭제
+	 * 
+	 * @see lib/NarinPluginInfo::uninstall()
+	 */
+	public function uninstall() {
+		sql_query("DROP TABLE `".$this->db_table."`");
+	}
+}
+
+?>
