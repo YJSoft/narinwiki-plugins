@@ -3,7 +3,7 @@
  * 
  * 나린위키 (structured) data 플러그인 : 플러그인 정보 클래스
  *
- * Narinwiki porting of Dokuwiki include plugin (http://www.dokuwiki.org/plugin:data)
+ * Narinwiki porting of Dokuwiki data plugin (http://www.dokuwiki.org/plugin:data)
  *
  * @package	   narinwiki
  * @subpackage plugin
@@ -50,7 +50,6 @@ class NarinPluginInfoData extends NarinPluginInfo {
 	 * @see lib/NarinPluginInfo::getSetting()
 	 */
 	public function getSetting() {
-		$css = file_exists($this->data_css_file) ? file_get_contents($this->data_css_file) : file_get_contents($this->plugin_path."/data.css");
 		return array(
 			"dataentry_allow_level"=>array("type"=>"select", 
 					"label"=>"dataentry 사용 권한", 
@@ -61,7 +60,7 @@ class NarinPluginInfoData extends NarinPluginInfo {
 					"label"=>"문서틀 폴더 ", 
 					"desc"=>"예를 들어, '/틀'로 지정하면, ---- dataentry project ---- 로 입력된 내용이 '/틀/project' 문서틀을 사용해서 보입니다. 
 					이 기능을 사용하려면 문서틀(template) 플러그인이 설치되어 있어야 합니다.", 
-					"value"=>"/틀"),
+					"value"=>"/틀")
 		);
 	}
 
