@@ -3,7 +3,7 @@
  * 나린위키 sortableTable 플러그인 : 플러그인 정보 클래스
  *
  * 사용법: 	
- * 		(^ Alphabetic ^ Numeric ^ Date ^ !Unsortable ^)
+ * 		(^ Alphabetic ^ +Numeric ^ -Date ^ !Unsortable ^)
  * 		(| d | 20 | 2008-11-24 | This    |)
  * 		(| b | 8  | 2004-03-01 | column  |)
  * 		(| a | 6  | 1979-07-23 | cannot  |)
@@ -25,7 +25,8 @@ class NarinPluginInfoSortableTable extends NarinPluginInfo {
 		$this->id = "wiki_sortableTable";
 		parent::__construct();
 		$this->init();
-		$this->plugin_path = $this->wiki[path]."/plugins/sortableTable";		// parental class has wrong path name by basename(dirname(__FILE__))
+//		$this->plugin_path = $this->wiki[path]."/plugins/sortableTable";		// parental class has wrong path name by basename(dirname(__FILE__))
+		$this->plugin_path = WIKI_PATH."/plugins/sortableTable";		// parental class has wrong path name by basename(dirname(__FILE__))
 		$this->data_loader_js_file	= $this->data_path."/js/sortableTable_plugin_loader.js";
 		$this->data_plugin_js_file	= $this->data_path."/js/jquery.tablesorter.min.js";
 		$this->data_css_file		= $this->data_path."/css/sortableTable.css";
@@ -41,17 +42,7 @@ class NarinPluginInfoSortableTable extends NarinPluginInfo {
 	}
 	
 	
-	/**
-	 * 플러그인 설정
-	 * TODO: 현재는 플러그인 세팅이 필요없지만, uninstall 버튼을 보이게 하기 위해서는 필요
-	 */
-	public function getSetting() {
-		return array(		
-			"theme"=>array("type"=>"select", "label"=>"테마", "desc"=>"테스트용", "options"=>array("blue","green"), "value"=>"blue")
-		);		
-	}
-	
-	
+
 	/**
 	 * 플러그인 인스톨이 필요한가? (DB 추가작업 등)
 	 * 필요하다면 return true
@@ -177,8 +168,17 @@ END;
 $(document).ready(function() 
 	{
 		$(".tablesorter").tablesorter();
-		$(".unsortable").removeClass("header").each(function (index) {
+		$(".unsortable").removeClass("header").each(function () {
 			this.sortDisabled = true;
+		});
+		$(".tablesorter").each(function () {
+			var sorting = new Array();
+			$(this).find(".headerSortUp, .headerSortDown").each(function () {
+				var col_index = $(this).parent('tr').children().index($(this));
+				if ($(this).is(".headerSortUp")) sorting.push([col_index, 0]);
+				else sorting.push([col_index, 1]);
+			});
+			$(this).trigger("sorton",[sorting]);
 		});
 	}
 );

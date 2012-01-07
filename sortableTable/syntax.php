@@ -66,7 +66,7 @@ class NarinSyntaxSortableTable extends NarinSyntaxPlugin {
 	 * 테이블 분석 - copied from narin.syntax.php (@author: byfun)
 	 * 
 	 * @format: 
-	 * 		(^ Alphabetic ^ Numeric ^ Date ^ !Unsortable ^)
+	 * 		(^ Alphabetic ^ +Numeric ^ -Date ^ !Unsortable ^)
 	 * 		(| d | 20 | 2008-11-24 | This    |)
 	 * 		(| b | 8  | 2004-03-01 | column  |)
 	 * 		(| a | 6  | 1979-07-23 | cannot  |)
@@ -99,7 +99,7 @@ class NarinSyntaxSortableTable extends NarinSyntaxPlugin {
 	
 		$col = 0;
 		for($i=0; $i<$size; $i++) {
-			$value = trim($arr[$i]," !");	// for removing unsortable mark
+			$value = trim($arr[$i]," !+-");	// for removing unsortable mark
 			$open_tag = $this->get_table_tag($arr[$i], $close=false);
 				
 			if(!$open_tag) {	// 태그가 아닐 경우 값 과 닫는 태그 입력
@@ -112,7 +112,7 @@ class NarinSyntaxSortableTable extends NarinSyntaxPlugin {
 			} else {
 					
 				// 정렬
-				preg_match("/^([\s]*)(!?)(.*?)([\s]*)$/", $arr[$i+1], $m);
+				preg_match("/^([\s]*)([!\+\-]?)(.*?)([\s]*)$/", $arr[$i+1], $m);
 				$tag = $this->get_table_tag($arr[$i], $close=false, $withBracket=false);
 				$before_space = strlen($m[1]);
 				$after_space = strlen($m[4]);
@@ -122,13 +122,16 @@ class NarinSyntaxSortableTable extends NarinSyntaxPlugin {
 				else if($before_space && !$after_space) $align = " align=\"right\"";
 				else $align = " align=\"left\"";
 				
-				// unsortable
-				$unsortable = strlen($m[2]) ? " unsortable" : "";
-	
 				// 칼럼
 				$col = ($i/2+1);
+
+				// unsortable
+				$unsortable = $m[2]=="!" ? " unsortable " : "";
+				
+				// sorted
+				$sorted = $m[2]=="+" ? " headerSortUp " : ( $m[2]=="-" ? " headerSortDown " : "");
 	
-				$class = " class=\"col".$col.$unsortable."\"";
+				$class = " class=\"col".$col.$unsortable.$sorted."\"";
 				
 				$out .= "<$tag$align$class>";
 			}
