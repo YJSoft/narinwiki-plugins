@@ -53,9 +53,10 @@ class NarinPluginInfoInclude extends NarinPluginInfo {
 	 */
 	public function getSetting() {
 		return array(
-			"allow_level"=>array("type"=>"select", "label"=>"플러그인 사용 권한", "desc"=>"설정된 권한보다 낮은 레벨의 사용자가 작성한 문서의 include는 무시됩니다.", "options"=>array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), "value"=>2),
-			"setting_nocontainer"=>array("type"=>"checkbox", "label"=>"nocontainer 허용", "desc"=>"이를 허용하지 않으면, 개별 nocontainer 옵션은 무시됩니다.", "value"=>1),
-			"setting_range"=>array("type"=>"select", "label"=>"include 허용 범위 지정", "desc"=>"설정된 범위보다 작은 범위만 허용합니다. (댓글포함은 아직 지원되지 않습니다)", "options"=>array("전체문서와 댓글","전체문서","첫문단만"), "value"=>2)
+			"allow_level"=>array("type"=>"select", "label"=>"플러그인 사용 권한", "desc"=>"설정된 권한보다 낮은 레벨의 사용자가 작성한 문서의 include는 무시됩니다.", "options"=>array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), "value"=>2)
+			,"setting_nocontainer"=>array("type"=>"checkbox", "label"=>"nocontainer 허용", "desc"=>"이를 허용하지 않으면, 개별 nocontainer 옵션은 무시됩니다.", "value"=>1)
+			,"setting_range"=>array("type"=>"select", "label"=>"include 허용 범위 지정", "desc"=>"설정된 범위보다 작은 범위만 허용합니다.", "options"=>array("전체문서","첫문단만"), "value"=>1)
+//			,"setting_range"=>array("type"=>"select", "label"=>"include 허용 범위 지정", "desc"=>"설정된 범위보다 작은 범위만 허용합니다. (댓글포함은 아직 지원되지 않습니다)", "options"=>array("전체문서와 댓글","전체문서","첫문단만"), "value"=>2)
 		);		
 	}
 }
