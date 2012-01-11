@@ -21,13 +21,6 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 	var $allow_level;
 	
 	/**
-	 * 
-	 * 사용자 회원레벨
-	 * @var integer
-	 */
-	var $writer_level = -1;
-	
-	/**
 	 *
 	 * template 블럭을 저장할 버퍼: array("position","content")
 	 * @var array
@@ -39,7 +32,7 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 	 */
 	function init()
 	{
-		$this->writer_level = -1;
+//		$this->writer_level = -1;
 	}
 
 	/**
@@ -106,7 +99,8 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 		}
 		
 		// position the template
-		$parser->addEvent(EVENT_AFTER_PARSING_ALL, $this, "wiki_restore_template");
+		// positional control tags are disabled in 2012-01-11 vesrion
+		//$parser->addEvent(EVENT_AFTER_PARSING_ALL, $this, "wiki_restore_template");
 	}
 	
 	
@@ -116,41 +110,31 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 		//TODO: better way to validate $expr
 		if(preg_match('/@@/', $expr, $m)) return $expr;	// no eval for template itself
 		
-		// parse options
+		// parse options (only format=)
 		if($matches[4]) parse_str(str_replace("&amp;", "&", $matches[4]));
 		
-/*
- * sanitizing expr
-		$f1 = array ('abs',   'acos',  'acosh', 'asin',  'asinh',
-		                'atan',  'atan2', 'atanh', 'cos',   'cosh',
-		                'exp',   'expm1', 'log',   'log10', 'log1p',
-		                'pi',    'pow',   'sin',   'sinh',  'sqrt',
-		                'tan',   'tanh');
-		
-		$f2 = array ('!01!',  '!02!',  '!03!',  '!04!',  '!05!',
-		                '!06!',  '!07!',  '!08!',  '!09!',  '!10!',
-		                '!11!',  '!12!',  '!13!',  '!14!',  '!15!',
-		                '!16!',  '!17!',  '!18!',  '!19!',  '!20!',
-		                '!21!',  '!22!');
-		
-		$expr = strtolower($expr);
-		$expr = str_replace($f1, $f2, $expr);
-		$expr = preg_replace("/[^\d\+\*\/\-\.(),! ]/", '', $expr);
-		$expr = str_replace($f2, $f1, $expr);
-*/
-				
-		$expr = preg_replace('/,/', '', $expr);
-		echo eval("\$return = ".$expr.";");
+		$expr = preg_replace('/,(\d{3})/', '\1', $expr);
+		//TODO: no way to distinguish b/w power(2,100) and 2,100
+		//	probably need to make numbers before expr
+		eval("\$return = ".$expr.";");
+
 		$n_frac = 2;
 		$d_sep = '.';
-		$t_sep = ',';
+		$t_sep = '';
 		$percent = "";
 		if($format) {
-			preg_match('/(\d)*?(\.(\d)*?)?(s|d|u|f|\%)/', $format, $matches);
-			$n_frac = $matches[3];
-			if($matches[4]=='%') {
+			preg_match('/(,)?(\d*)?(\.(\d*))?(s|d|u|f|\%)/', $format, $matches);
+
+			if(preg_match('/,/s', $matches[1])) {
+				$t_sep = ',';
+			}
+			
+			if(isset($matches[4])) $n_frac = $matches[4];
+			
+			// currently only '%' affects the format
+			if($matches[5]=='%') {
 				$return = $return * 100;
-				$percent = $matches[4];
+				$percent = '%';
 			}
 		}
 		return number_format($return, $n_frac, $d_sep, $t_sep).$percent;
@@ -171,47 +155,84 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 				
 		$pattern = '/((.*)\/)([^\/\#]*)(\#(.*))?$/';
 		preg_match($pattern, $matches[1], $m);
+		
 		// m[1]: root namespace if m[2]=NULL
 		// m[2]: non-root namespace
 		// m[3]: docname
 		// m[5]: secname if any
-		$loc = $m[1];
-		if($m[2]) $loc = $m[2];
-		$docname = $m[3];
-		if($m[5]) $secname = $m[5];
-		$path = $m[1].$m[3];
+		$args = array();
+		$args['loc'] = $m[2] ? $m[2] : $m[1];
+		$args['docname'] = $m[3];
+		$args['secname'] = $m[5] ? $m[5] : "";
+		$args['path'] = wiki_doc($args['loc'], $args['docname']);
+		$args['options'] = $matches[4];
 		
+		// 작성자 레벨 셋팅
+		if($params[view][mb_id]) {
+			$writer = get_member($params[view][mb_id]);
+			$args['writer_level'] = $writer[mb_level];
+		} else $args['writer_level'] = 0;
+		
+		$templated = $this->wiki_template_nojs($args, &$params);
+		
+		$options = wiki_json_encode($args);
+		
+		return '<nocache plugin="template" method="cache_render" params="'.addslashes($options).'">'.$templated.'</nocache>';
+	}
+
+	/**
+	 *
+	 * 부분 캐시 랜더 함수
+	 *
+	 * @param array $args {@link narin.php} 에서 전달하는 파라미터
+	 * @return string HTML 태그
+	 */
+	public function cache_render($args) {
+		return $this->wiki_template_nojs($args, null);
+	}
+	
+	/**
+	 *
+	 * template 처리 without js (currently no js version though)
+	 *
+	 * @param array $args 파라미터
+	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터/ can be null
+	 * @return string include되고 파싱된 결과
+	 */
+	public function wiki_template_nojs($args, $params) {
+		// default parser, if params is not null
+		if($params) {
+			$wikiParser = new NarinParser();
+				
+			$plugins = &$params['plugins'];
+			$default = &$plugins[array_search('wiki_default_parser', $plugins)];
+		}else {
+			$wikiParser = wiki_class_load("Parser");
+		}
+			
 		$parameters = array();
 		$values = array();
-		if($matches[4]) { 
-			$list = explode("&", str_replace("&amp;", "&", $matches[4]));
+		if($args['options']) {
+			$list = explode("&", str_replace("&amp;", "&", $args['options']));
 			foreach($list as $el) {
 				$pair = explode("=", $el);
 				array_push($parameters, "/@@".$pair[0]."@@/");
 				array_push($values, $pair[1]);
 			}
-		}
-		
-		// 작성자 레벨 셋팅
-		if($this->writer_level < 0) {
-			if($params[view][mb_id]) {
-				$writer = get_member($params[view][mb_id]);
-				$this->writer_level = $writer[mb_level];
-			} else $this->writer_level = 0;
-		}
-		
+		}	
 		// Template 사용 level check
-		if($this->allow_level > $this->writer_level) return "";
+		if($this->allow_level > $args['writer_level']) return "";
 		
 		// folder access level check
 		$wikiNS = wiki_class_load("Namespace");
-		$n = $wikiNS->get($loc);
-		if($this->member[mb_level] < $n[ns_access_level]) return "";
+		$n = $wikiNS->get($args['loc']);
+		if($this->member['mb_level'] < $n['ns_access_level']) return "";
 		
 		// template access level check
 		$wikiArticle = wiki_class_load("Article");
-		$t = $wikiArticle->getArticle($loc, $docname);
-		if($this->member[mb_level] < $t[access_level]) return "";
+		if(!$wikiArticle->exists($args['loc'], $args['docname'])) return "";
+		$t = $wikiArticle->getArticle($args['loc'], $args['docname']);
+		if($this->member['mb_level'] < $t['access_level']) return "";
 
 //		$prefix = "<div style='border:1px gray dotted; padding:5px;'><div style='padding:5px 10px;background-color:#f8f8f8;'>사용된 틀: "
 //		            .$matches[1]."</div>";
@@ -223,32 +244,32 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 		//if($this->doc == $path) return $prefix."<div style='color:red;'>자기자신은 include 할 수 없습니다.</div>".$postfix;
 
 		// close all open tags
-		if(preg_match('/~~CLOSEALL~~/', $t[wr_content])) {
-			$prefix = $this->get_close(&$params).$prefix;		// it might mess up with section level when used with ~~PAGEBOTTOME~~
-			$t[wr_content] = preg_replace('/~~CLOSEALL~~/', '', $t[wr_content]);
+		if(preg_match('/~~CLOSEALL~~/', $t['wr_content'])) {
+			if($params) $prefix = $this->get_close(&$default).$prefix;		// it might mess up with section level when used with ~~PAGEBOTTOME~~
+			$t['wr_content'] = preg_replace('/~~CLOSEALL~~/', '', $t['wr_content']);
 		}
 		
 		// move template 
 		$template_position = "HERE";
-		if(preg_match('/~~PAGETOP~~/', $t[wr_content])) {
+		if(preg_match('/~~PAGETOP~~/', $t['wr_content'])) {
 			$template_position = "TOP";
-			$t[wr_content] = preg_replace('/~~PAGETOP~~/', '', $t[wr_content]);
+			$t['wr_content'] = preg_replace('/~~PAGETOP~~/', '', $t['wr_content']);
 		}
-		if(preg_match('/~~PAGEBOTTOM~~/', $t[wr_content])) {
+		if(preg_match('/~~PAGEBOTTOM~~/', $t['wr_content'])) {
 			$template_position = "BOTTOM";
-			$t[wr_content] = preg_replace('/~~PAGEBOTTOM~~/', '', $t[wr_content]);
+			$t['wr_content'] = preg_replace('/~~PAGEBOTTOM~~/', '', $t['wr_content']);
 		}
 		
 		
 		// onlyinclude
-		if(preg_match('/<onlyinclude>(.*?)<\/onlyinclude>/s', $t[wr_content], $onlyinclude)) {
-			$t[wr_content] = $onlyinclude[1];
+		if(preg_match('/<onlyinclude>(.*?)<\/onlyinclude>/s', $t['wr_content'], $onlyinclude)) {
+			$t['wr_content'] = $onlyinclude[1];
 		}
 		
 		// noinclude
-		$t[wr_content] = preg_replace('/<noinclude>(.*?)<\/noinclude>/s', "", $t[wr_content]);
+		$t['wr_content'] = preg_replace('/<noinclude>(.*?)<\/noinclude>/s', "", $t['wr_content']);
 		
-		// can we do foreach (##...@@--@@...##) and exist (<<...@@--@@...>>))
+		// can we do foreach (##...@@--@@...##) and exist (<<...@@--@@...>>) ??
 		// e.g.		<<카테고리: ##[[/카테고리/@@name@@]]## \\>>
 		foreach($parameters as $k=>$p) {
 			if(!$values[$k]) continue;
@@ -263,7 +284,7 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 				
 				$val = $values[$k];
 				
-				// assume ', ' as delimit
+				// assume ', ' being delimiter
 				$array = array();
 				$array = explode(', ', $val);
 				$new_array = array();
@@ -271,41 +292,44 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 					array_push($new_array, $R_open.$a.$R_end);
 				}
 				$new = implode(', ', $new_array);
-//				echo $p." : ".$pattern." : ".$old." ==> ".$new."<br/>";
 				
-				$t[wr_content] = str_replace($old, $start.$new.$end, $t[wr_content]);
+				$t['wr_content'] = str_replace($old, $start.$new.$end, $t['wr_content']);
 			}
 		}
 		
 		// clean rest of <<..@@..@@..>>
 		// TODO: <<..{{expr=@@..@@+@@..@@}}..>> cannot be cleaned when one of the args in expr
 		$pattern = '/(<<([^<#@]*?))?(##([^<@]*?))?@@[^@]*@@(([^<@]*?)##)?(([^<@]*?)>>)?/s';
-		preg_match($pattern, $t[wr_content], $matches);
-//		print_r2($matches);
-		$t[wr_content] = preg_replace($pattern, "", $t[wr_content]);
+		preg_match($pattern, $t['wr_content'], $matches);
+		$t['wr_content'] = preg_replace($pattern, "", $t['wr_content']);
 		
-		// now anything without <<..>> or ##..##
+		// now anything without <<..>> or ##..##, althought seems unnecessary
 		// replacing
-		$t[wr_content] = preg_replace($parameters, $values, $t[wr_content]);
+		$t['wr_content'] = preg_replace($parameters, $values, $t['wr_content']);
 		// delete any missing @@--@@s
-		$t[wr_content] = preg_replace("/@@[^@]*@@/","",$t[wr_content]);
+		$t['wr_content'] = preg_replace("/@@[^@]*@@/","",$t['wr_content']);
 		
 		// parse the replaced template
-//		$wikiParser = wiki_class_load("Parser");
-		$wikiParser = new NarinParser();
 		$content = $wikiParser->parse($t);
 		
 		// some post parsing..
 		$pattern = '/^<div class=\'narin_contents\'>|<div id=\'wiki_toc\'>.*<!--\/\/ wiki_toc -->|<a name[^<]*><\/a>|<\/div>$/s';
 		$content = preg_replace($pattern, "", $content);
-		
-		array_push($this->blocks, array("position"=>$template_position, "content"=>$prefix.$content.$postfix) );
-		return "<template></template>";
-		
+
+		// currently, just return it withouth adjusting the position of templated content in 2012-01-11 version
 		return $prefix.$content.$postfix;
+
+		// try to do both, addEvent(EVENT_AFTER_PARSING_ALL, ...) and partial nocache
+		if($params) {
+			// for initial rendering
+			array_push($this->blocks, array("position"=>$template_position, "content"=>$prefix.$content.$postfix) );
+			return "<template></template>";
+		}else {
+			return $prefix.$content.$postfix;
+		}
 	}
 	
-	
+
 	/**
 	 *
 	 * 코드 복구 (after parsing)
@@ -331,76 +355,15 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 		}
 	}
 	
-	
-	
-	/**
-	 *
-	 * NOT USED
-	 * template_field.. (<<([^<#@]*?))?(##([^<@]*?))?@@([^@]*?)@@((.*?)##)?(([^<@]*?)>>)?
-	 *
-	 * @param array $matches 패턴매칭 결과
-	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터
-	 * @return string 닫는 태그
-	 */
-	public function template_field($matches, $params) {
-		$start	= $matches[2];
-		$open	= $matches[4];
-		$key	= $matches[5];
-		$close	= $matches[7];
-		$end	= $matches[9];
-		
-		return $start.$open.$key.$close.$end;
-	}
-	
-	
-	/**
-	 *
-	 * NOT USED
-	 * foreach: ##string|delim|before|after##
-	 *
-	 * @param array $matches 패턴매칭 결과
-	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터
-	 * @return string 닫는 태그
-	 */
-	public function wiki_foreach($matches, $params) {
-		// $matches[1] : input
-		// $matches[2] : delim
-		// $matches[3] : prefix
-		// $matches[4] : postfix
-		
-		$target = $matches[0];
-		$old    = $matches[1];
-		$delim  = $matches[2];
-		$pre    = $matches[3];
-		$post   = $matches[4];
-		$n_delim = $matches[6];
-
-		if(!$old) return "";
-		if(!$delim) return $old;
-		
-		$array = array();
-		$array = explode($delim, $old);
-		$new_array = array();
-		foreach($array as $ele) {
-			array_push($new_array, $pre.$ele.$post);
-		}
-		return implode($n_delim, $new_array);
-	}
-
-	
-	
 	/**
 	 *
 	 * 기본 문법 해석기의 열린 태그 닫음 (copy from column plugin - get_close()
 	 *   - section, table, p, ul, ol 등의 태그가 열려있으면 닫아줌 (~~CLOSEALL~~)
 	 *
-	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터
+	 * @param array $default default parser
 	 * @return string 닫는 태그
 	 */
-	protected function get_close($params) {
-		$plugins = &$params['plugins'];
-		$default = &$plugins[array_search('wiki_default_parser', $plugins)];
-
+	protected function get_close($default) {
 		$close_tag = '';
 		
 		if ($default->list_level>0)
