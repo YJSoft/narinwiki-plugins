@@ -382,6 +382,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 			$args['writer_level'] = $writer[mb_level];
 		} else $args['writer_level'] = 0;
 		
+		$args['db_table'] = $this->db_table;
 		$args['keyword'] = $keyword;
 		$args['headers'] = implode('|', $headers);
 		$args['fields']  = implode('|', $fields);
@@ -432,7 +433,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 		$list_sort = array();
 				
 		// currently dataentry without keyword might have a problem to show
-		$sql_wr_id = "SELECT wr_id FROM ".$this->db_table." 
+		$sql_wr_id = "SELECT wr_id FROM ".$args['db_table']." 
 						WHERE bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND (".$args['filter_where'].") 
 						GROUP BY wr_id ".$having;
 		$res_wr_id = sql_query($sql_wr_id);
@@ -458,7 +459,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 				}
 				
 				// other fields, potentially multiple values
-				$sql = "SELECT col, val FROM ".$this->db_table." 
+				$sql = "SELECT col, val FROM ".$args['db_table']." 
 						WHERE bo_table='".$this->bo_table."' AND wr_id=".$wr_id." AND ".$args['filter_keyword']." AND col='".$field."'";
 				$res = sql_query($sql);
 				$val_array = array();
@@ -754,6 +755,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 			$args['writer_level'] = $writer[mb_level];
 		} else $args['writer_level'] = 0;
 	
+		$args['db_table'] = $this->db_table;
 		$dataout_inline = $this->wiki_dataout_inline_nojs($args, &$params);
 	
 		$options = wiki_json_encode($args);
@@ -790,7 +792,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 				$having_target = "HAVING COUNT(1)=".$args['having_target'];
 			}
 		
-			$sql_wr_id = "SELECT wr_id FROM ".$this->db_table."
+			$sql_wr_id = "SELECT wr_id FROM ".$args['db_table']."
 							WHERE bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND (".$args['filter_target'].") 
 							GROUP BY wr_id ".$having_target;
 			$res_wr_id = sql_query($sql_wr_id);
@@ -803,10 +805,10 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 			$sql_rank = "SELECT rank FROM (
 							SELECT @rank:=@rank+1 AS rank, wr_id, val FROM (
 								SELECT d.wr_id, val FROM (
-									SELECT wr_id FROM ".$this->db_table."
+									SELECT wr_id FROM ".$args['db_table']."
 									WHERE bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND (".$args['filter_where'].")
 									GROUP BY wr_id ".$having."
-								) c, ".$this->db_table." d
+								) c, ".$args['db_table']." d
 								WHERE d.bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND d.wr_id=c.wr_id AND col = '".$args['field']."'
 								ORDER BY CAST(val AS DECIMAL) ".$args['sort']."
 							) r
@@ -819,7 +821,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 			return " ".$row_rank['rank']." ";
 		}
 			
-		$sql_wr_id = "SELECT wr_id FROM ".$this->db_table."
+		$sql_wr_id = "SELECT wr_id FROM ".$args['db_table']."
 						WHERE bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND (".$args['filter_where'].") 
 						GROUP BY wr_id ".$having;
 		$res_wr_id = sql_query($sql_wr_id);
@@ -843,7 +845,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 						array_push($data_array, "<a href='".$href."' class='wiki_active_link'>".$write['doc']."</a>");
 					}
 				}else {
-					$sql = "SELECT val FROM ".$this->db_table."
+					$sql = "SELECT val FROM ".$args['db_table']."
 								WHERE bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND col='".$args['field']."' AND wr_id=".$wr_id."
 								GROUP BY wr_id";
 					$row = sql_fetch($sql);
