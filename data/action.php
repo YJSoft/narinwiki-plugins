@@ -9,6 +9,13 @@
  * @author     Jin Jun (jinjunkr@gmail.com)
  */
 class NarinActionData extends NarinActionPlugin {
+
+	/**
+	 *
+	 * @var string 사용되는 디비 테이블 이름
+	 */
+	var $db_table;
+	
 	
 	/**
 	 * 
@@ -17,6 +24,7 @@ class NarinActionData extends NarinActionPlugin {
 	public function __construct() {
 		$this->id = "wiki_action_data";		
 		parent::__construct();
+		$this->db_table = 'byfun_narin_dataplugin';
 	}	  	
 
 	/**
@@ -66,7 +74,7 @@ class NarinActionData extends NarinActionPlugin {
 		$wr_content = preg_replace('/<html>(.*?)<\/html>/si', '', $wr_content);
 		
 		// clear the previous one: for now no easy way to find updated dataentry.. so delete every dataentry on this page
-		$sql_clear = "DELETE FROM byfun_narin_dataplugin WHERE bo_table = '".$this->wiki['bo_table']."' AND wr_id=".$wr_id;
+		$sql_clear = "DELETE FROM ".$this->db_table." WHERE bo_table = '".$this->wiki['bo_table']."' AND wr_id=".$wr_id;
 		sql_query($sql_clear);
 		
 		// find block dataentry
@@ -123,13 +131,13 @@ class NarinActionData extends NarinActionPlugin {
 				// col ending w/ 's'
 				$vals = array_map('trim', explode(',', $vmatch[1]));
 				foreach($vals as $val) {
-					$sql = "INSERT INTO byfun_narin_dataplugin (bo_table, wr_id, keyword, col, val) VALUES ('".
+					$sql = "INSERT INTO ".$this->db_table." (bo_table, wr_id, keyword, col, val) VALUES ('".
 						$this->bo_table."', ".$wr_id.", '".$keyword."', '".$col."', '".$val."')";
 					sql_query($sql);
 				}
 			}else {
 				$val = $vmatch[1];
-				$sql = "INSERT INTO byfun_narin_dataplugin (bo_table, wr_id, keyword, col, val) VALUES ('".
+				$sql = "INSERT INTO ".$this->db_table." (bo_table, wr_id, keyword, col, val) VALUES ('".
 					$this->bo_table."', ".$wr_id.", '".$keyword."', '".$col."', '".$val."')";
 				sql_query($sql);
 			}
@@ -146,7 +154,7 @@ class NarinActionData extends NarinActionPlugin {
 		$wr_id = $params['write']['wr_id'];
 		
 		// clear the database entries
-		$sql_clear = "DELETE FROM byfun_narin_dataplugin WHERE bo_table = '".$this->wiki['bo_table']."' AND wr_id=".$wr_id;
+		$sql_clear = "DELETE FROM ".$this->db_table." WHERE bo_table = '".$this->wiki['bo_table']."' AND wr_id=".$wr_id;
 		sql_query($sql_clear);
 	}
 
@@ -160,7 +168,7 @@ class NarinActionData extends NarinActionPlugin {
 		foreach($params['chk_wr_id'] as $wr_id) {
 
 			// clear the database entries
-			$sql_clear = "DELETE FROM byfun_narin_dataplugin WHERE bo_table = '".$this->wiki['bo_table']."' AND wr_id=".$wr_id;
+			$sql_clear = "DELETE FROM ".$this->db_table." WHERE bo_table = '".$this->wiki['bo_table']."' AND wr_id=".$wr_id;
 			sql_query($sql_clear);
 		}
 	}

@@ -95,7 +95,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 			$method = "wiki_dataout_inline");
 		
 		// future feature
-		$parser->addBlockParser(
+/*		$parser->addBlockParser(
 			$id = $this->plugin_info->getId()."_wiki_datacloud",
 			$klass = $this,
 			$startRegx = "---- datacloud ----",
@@ -108,7 +108,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 			$startRegx = "---- datarelated ----",
 			$endRegx = "----",
 			$method = "wiki_datarelated");
-		
+*/		
 	}
 
 	
@@ -234,7 +234,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 		// template parsing
 		$wikiArticle = wiki_class_load("Article");
 		$t = $wikiArticle->getArticle($this->template_ns, $template);	// no need to use tempate page for create empty write object.. but y not
-		$t[wr_content] = "{{template=".wiki_doc($this->template_ns, $template)."?".implode("&",$options)."}}";
+		$t['wr_content'] = "{{template=".wiki_doc($this->template_ns, $template)."?".implode("&",$options)."}}";
 		$wikiParser = new NarinParser();
 		$content = $wikiParser->parse($t);
 		// some post parsing..
@@ -243,229 +243,8 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 		
 		return $content;
 	}
-		
-	
-	/**
-	 *
-	 * inline 형태의 출력: datacount / datalist
-	 *
-	 * @param array $matches 패턴매칭 결과
-	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터
-	 * @return string output
-	 */
-	public function wiki_dataout_inline($matches, $params) {
-		// matches[1] : method (count or list)
-		// matches[2] : '=' if any
-		// matches[3] : anything b/w '=' and '?'  e.g.  도시:^인구&name=부산
-		// matches[5] : list of parameter=value after '?'
 
-		$method = $matches[1];
-		
-		// keyword
-		$filter_keyword = "1";
-		$keyword = "";
-		
-		// target filtering
-		$filter_target = "1";
-		$having_target = "";
-		$filters_target = array();		// filters for target.. only for rank method
-		
-		// condition filtering
-		$filters = array();
-		
-		// for datalist
-		$field = 'fullpath';
-		
-		// for datarank
-		$sort = 'ASC';
-		
-		// process $matches[2] if exists
-		if($matches[2]) {
-			$list = explode("&", str_replace("&amp;", "&", $matches[3]));
-			$targets = explode(":", array_shift($list));		// first one should be keyword (count) or keyword:field or field (list,item,rank)
-			if($method=="count") {
-				$keyword = $targets[0];
-			}else {
-				if(count($targets)==1) {
-					$field = $targets[0];
-				}else {
-					$keyword = $targets[0];
-					$field   = $targets[1];
-					if($method == "rank" && preg_match('/^\^(.*)$/', $field, $sort_match)) {
-						$sort = 'DESC';
-						$field = $sort_match[1];
-					}
-				}
-			}
-			if($keyword) $filter_keyword = " keyword = '".$keyword."' ";
-				
-			//if($method != "rank") break;
-			
-			foreach($list as $el) {
-				$op_pattern = '/^(.*?)(=|\!=|&lt;&gt;|&lt;|&lt;=|=&gt;|&gt;|\~|\!\~)(.*?)$/s';
-				preg_match($op_pattern, $el, $op_matches);
-				$col = $op_matches[1];
-				$val = $op_matches[3];
-				$op  = $op_matches[2];
-				$not = "";
-				
-				if($op=='~') {
-					// wildcard
-					$op = 'LIKE';
-					$val = preg_replace('/\*/', '%', $val);
-				}elseif($op=='!~') {
-					// wildcard
-					$op = 'LIKE';
-					$not = 'NOT';
-					$val = preg_replace('/\*/', '%', $val);
-				}elseif($op=='!=' || $op=='<>') {
-					$op = '=';
-					$not = 'NOT';
-				}else {
-					$op = preg_replace('/&lt;/','<',$op);
-					$op = preg_replace('/&gt;/','>',$op);
-				}
-		
-				if($col == 'class') {
-					$keyword = 'class';
-					$filter_keyword = $not." keyword ".$op." '".$val."' ";
-				}
-				else array_push($filters_target, "(col = '".$col."' AND ".$not." val ".$op." '".$val."')");
-			}
-			
-			// target filtering
-			if(count($filters_target)) {
-				$filter_target = implode(' OR ', $filters_target);
-				$having_target = "HAVING COUNT(1)=".count($filters_target);
-			}
-		}
-		
-		
-		if($matches[5]) { 
-			$list = explode("&", str_replace("&amp;", "&", $matches[5]));
-			foreach($list as $el) {
-				$op_pattern = '/^(.*?)((=|\!=|&lt;&gt;|&lt;|&lt;=|=&gt;|&gt;|\~|\!\~)(.*))?$/s';
-				preg_match($op_pattern, $el, $op_matches);
-				$col = $op_matches[1];
-				$val = $op_matches[4];
-				$op  = $op_matches[3];
-				$not = "";
-				if(!$op_matches[2]) {	// no comparison.. so class
-					// datalist 인경우는 keyword:field 형태로 한 field를 선택, 없는 경우는 %pageid%
-					if($method == "list" || $method == "item" || $method == "rank") {
-						$kv = explode(":", $col);
-						$val = $kv[0];
-						if($kv[1]) $field = $kv[1];
-						if($method == "rank" && preg_match('/^\^(.*)$/', $field, $sort_match)) {
-							$sort = 'DESC';
-							$field = $sort_match[1];
-						}
-					}else {
-						$val = $op_matches[1];
-					}
-					$col = 'class';					
-					$op = '=';
-				}else {
-					if($op=='~') {	// wildcard
-						$op = 'LIKE';
-						$val = preg_replace('/\*/', '%', $val);
-					}elseif($op=='!~') {	// wildcard
-						$op = 'LIKE';
-						$not = 'NOT';
-						$val = preg_replace('/\*/', '%', $val);
-					}elseif($op=='!=' || $op=='<>') {
-						$op = '=';
-						$not = 'NOT';
-					}else {
-						$op = preg_replace('/&lt;/','<',$op);
-						$op = preg_replace('/&gt;/','>',$op);
-					}
-				}
-				
-				if($col == 'class') {
-					$keyword = 'class';
-					$filter_keyword = $not." keyword ".$op." '".$val."' ";
-				}
-				else array_push($filters, "(col = '".$col."' AND ".$not." val ".$op." '".$val."')");
-			}
-		}
-		
-		// filtering
-		$filter_where = "1";	$having = "";
-		if(count($filters)) {
-			$filter_where = implode(' OR ', $filters);
-			$having = "HAVING COUNT(1)=".count($filters);
-		}
-		
-		if($method == "rank") {
-			$sql_wr_id = "SELECT wr_id FROM ".$this->db_table."
-								WHERE bo_table='".$this->bo_table."' AND ".$filter_keyword." AND (".$filter_target.") 
-								GROUP BY wr_id ".$having_target;
-			$res_wr_id = sql_query($sql_wr_id);
-			$row_wr_id = mysql_fetch_assoc($res_wr_id);
-			$sort_wr_id = $row_wr_id['wr_id'];
-			if(!$sort_wr_id) return " <span style='color:red;'>등록정보없음</span> ";
-			
-			// make all wr_id list without filter_target
-			mysql_query("SET @rank=0");
-			$sql_rank = "SELECT rank FROM (
-							SELECT @rank:=@rank+1 AS rank, wr_id, val FROM (
-								SELECT d.wr_id, val FROM (
-									SELECT wr_id FROM ".$this->db_table."
-										WHERE bo_table='".$this->bo_table."' AND ".$filter_keyword." AND (".$filter_where.")
-										GROUP BY wr_id ".$having."
-									) c, ".$this->db_table." d
-									WHERE d.bo_table='".$this->bo_table."' AND ".$filter_keyword." AND d.wr_id=c.wr_id AND col = '".$field."'
-									ORDER BY CAST(val AS DECIMAL) ".$sort."
-								) r
-							) g	
-							WHERE g.wr_id = ".$sort_wr_id;
-					//TODO: order should be done by proper casting.. maybe need to specify the data type 
-					//		e.g. _int  --> CAST(val AS UNSIGNED), _dt --> CAST(val AS DATETIME), _num  --> CAST(val AS DECIMAL)
-			$res_rank = sql_query($sql_rank);
-			$row_rank = mysql_fetch_assoc($res_rank);
-			return " ".$row_rank['rank']." ";
-		}
-		
-		$sql_wr_id = "SELECT wr_id FROM ".$this->db_table."
-								WHERE bo_table='".$this->bo_table."' AND ".$filter_keyword." AND (".$filter_where.") 
-								GROUP BY wr_id ".$having;
-		$res_wr_id = sql_query($sql_wr_id);
-		if($method == "count") {
-			return " ".mysql_num_rows($res_wr_id)." ";
-		}else {
-			$data_array = array();
-			while($row_wr_id = mysql_fetch_assoc($res_wr_id)) {
-				$wr_id = $row_wr_id['wr_id'];
-			
-				// fullpath is reserved for %pageid%, docname is reserved for %title%
-				if($field=='fullpath' || $field=='%pageid%' || $field=='%title%') {
-					$wikiArticle =& wiki_class_load("Article");
-					$write = $wikiArticle->getArticleById($wr_id);
-					$fullpath = wiki_doc($write['ns'], $write['doc']);
-					$href = $this->wiki['path']."/narin.php?bo_table=".$this->bo_table."&doc=".urlencode($fullpath);
-					if($field=='fullpath' || $field=='%pageid%') {
-						array_push($data_array, "<a href='".$href."' class='wiki_active_link'>".$fullpath."</a>");
-					}else {
-						array_push($data_array, "<a href='".$href."' class='wiki_active_link'>".$write['doc']."</a>");
-					}
-				}else {
-					$sql = "SELECT val FROM ".$this->db_table."
-								WHERE bo_table='".$this->bo_table."' AND ".$filter_keyword." AND col='".$field."' AND wr_id=".$wr_id."
-								GROUP BY wr_id";
-					$row = sql_fetch($sql);
-					array_push($data_array, $row['val']);
-				}
-				if($method == "item") {
-					return " ".array_shift($data_array)." ";
-				}
-			}
-			if(count($data_array) == 0) return " <span style='color:red;'>등록정보없음</span> ";
-			sort($data_array);
-			return " ".implode(", ", $data_array)." ";
-		}
-	}
-		
+
 	/**
 	 *
 	 * datatable/datalist 출력
@@ -491,13 +270,17 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 		// sort    : ^name
 		
 		$fields = array();
-		$args['headers'] = array();	// only works for table
+		$headers = array();	// only works for table
 		$args['max'] = -1;
+		
+		// keyword
 		$keyword = '';
-		$filter_keyword = '1';
+		$args['filter_keyword'] = '1';
 		$filters = array();
-		$sort_dir = 'ASC';
-		$sort_col = '';
+		
+		// sort
+		$args['sort_dir'] = 'ASC';
+		$args['sort_col'] = '';
 		
 		$lines = preg_split( '/\r\n|\r|\n/', $content);
 		foreach($lines as $line) {
@@ -525,7 +308,7 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 				case 'headers':
 				case 'header':
 				case 'head':
-					$args['headers'] = array_map('trim', explode(',', $kv[1]));
+					$headers = array_map('trim', explode(',', $kv[1]));
 					break;
 				case 'max':
 				case 'limit':
@@ -558,38 +341,99 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 					 
 					if($col == 'class') {
 						$keyword = 'class';
-						$filter_keyword = $not." keyword ".$op." '".$val."' ";
+						$args['filter_keyword'] = $not." keyword ".$op." '".$val."' ";
 					}
 					else array_push($filters, "(col = '".$col."' AND ".$not." val ".$op." '".$val."')");
 					break;
 				case 'sort':
 				case 'order':
 					if(preg_match('/^\^/',$kv[1])) {
-						$sort_dir = 'DESC';
+						$args['sort_dir'] = 'DESC';
 					}
-					$sort_col = trim($kv[1],'^');
+					$args['sort_col'] = trim($kv[1],'^');
 					break;
 			}
 		}
-		$args['fields'] = $fields;
 		// if headers are not specified, use col($fields) instead
-		if(!$args['headers']) $args['headers'] = $args['fields'];
+		if(!$headers) $headers = $fields;
+		
+		// for stable initial sorting
+		foreach($headers as &$h) {
+			if($h == $args['sort_col']) {
+				if($args['sort_dir'] == 'ASC') {
+					$h = '+'.$h;
+				}else {
+					$h = '-'.$h;
+				}
+			}
+		}
+		
+		// filtering
+		$args['filter_where'] = "1";
+		$args['having'] = 0;
+		if(count($filters)) {
+			$args['filter_where'] = implode(' OR ', $filters);		// FOR counting the satisfied wr_ids
+			$args['having'] = count($filters);
+		}
+		
+		// 작성자 레벨 셋팅
+		if($params[view][mb_id]) {
+			$writer = get_member($params[view][mb_id]);
+			$args['writer_level'] = $writer[mb_level];
+		} else $args['writer_level'] = 0;
+		
+		$args['keyword'] = $keyword;
+		$args['headers'] = implode('|', $headers);
+		$args['fields']  = implode('|', $fields);
+		$dataout_block = $this->wiki_dataout_block_nojs($args, &$params);
+		
+		$options = wiki_json_encode($args);
+		
+		return '<nocache plugin="data" method="cache_render_block" params="'.addslashes($options).'">'.$dataout_block.'</nocache>';
+	}
+	
+	/**
+	 *
+	 * 부분 캐시 랜더 함수
+	 *
+	 * @param array $args {@link narin.php} 에서 전달하는 파라미터
+	 * @return string HTML 태그
+	 */
+	public function cache_render_block($args) {
+		return $this->wiki_dataout_block_nojs($args, null);
+	}
+	
+	/**
+	 *
+	 * dataout block 처리 without js (currently no js version though)
+	 *
+	 * @param array $args 파라미터
+	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터/ can be null
+	 * @return string 처리되고 파싱된 결과
+	 */
+	public function wiki_dataout_block_nojs($args, $params) {
+		// default parser, if params is not null
+		if($params) {
+			$wikiParser = new NarinParser();
+		}else {
+			$wikiParser = wiki_class_load("Parser");
+		}
+
+		$headers = explode("|", $args['headers']);
+		$fields = explode("|", $args['fields']);
+		
+		if($args['having']>0) {
+			$having = "HAVING COUNT(1)=".$args['having'];
+		}		
 		
 		$wikiArticle =& wiki_class_load("Article");
 		// retrieve the data
 		$list = array();
 		$list_sort = array();
-		
-		// filtering
-		$filter_where = "1"; $having = "";
-		if(count($filters)) {
-			$filter_where = implode(' OR ', $filters);		// FOR counting the satisfied wr_ids
-			$having = "HAVING COUNT(1)=".count($filters);
-		}
 				
 		// currently dataentry without keyword might have a problem to show
 		$sql_wr_id = "SELECT wr_id FROM ".$this->db_table." 
-						WHERE bo_table='".$this->bo_table."' AND ".$filter_keyword." AND (".$filter_where.") 
+						WHERE bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND (".$args['filter_where'].") 
 						GROUP BY wr_id ".$having;
 		$res_wr_id = sql_query($sql_wr_id);
 		while($row_wr_id = sql_fetch_array($res_wr_id)) {
@@ -609,12 +453,13 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 				// class is reserved for %class%
 				if($field == 'class') {
 					// not much special treatment.. unless providing dynamic datatable page for specific class
-					$data['class'] = $keyword;
+					$data['class'] = $args['keyword'];
 					continue;
 				}
 				
 				// other fields, potentially multiple values
-				$sql = "SELECT col, val FROM ".$this->db_table." WHERE bo_table='".$this->bo_table."' AND wr_id=".$wr_id." AND ".$filter_keyword." AND col='".$field."'";
+				$sql = "SELECT col, val FROM ".$this->db_table." 
+						WHERE bo_table='".$this->bo_table."' AND wr_id=".$wr_id." AND ".$args['filter_keyword']." AND col='".$field."'";
 				$res = sql_query($sql);
 				$val_array = array();
 				while($row = sql_fetch_array($res)) {
@@ -623,22 +468,31 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 				$data[$field] = implode(", ", $val_array);
 				
 				// store the values for sorting.. for now %..% fields cannot be used for sorting.. WTH
-				if($field == $sort_col) array_push($list_sort, $data[$field]);
+				if($field == $args['sort_col']) array_push($list_sort, $data[$field]);
 			}
 			array_push($list, $data);
 		}
 		
 		// sorting
-		if($sort_col) {
-			if($sort_dir == 'ASC') {
+		if($args['sort_col']) {
+			if($args['sort_dir'] == 'ASC') {
 				array_multisort($list_sort, SORT_ASC, $list);
 			}else {
 				array_multisort($list_sort, SORT_DESC, $list);
 			}
-		}		
+		}
+
+		$args['headers'] = $headers;
+		$args['fields']  = $fields;
 		
-		if($args['type'] == 'table' || $args['type'] == 'stable') return $this->render_table($args, &$list, &$params);
-		else return $this->render_list($args, &$list, &$params);
+//		if($args['type'] == 'table' || $args['type'] == 'stable') return $this->render_table($args, &$list);
+//		else return $this->render_list($args, &$list);
+		
+		if($args['type'] == 'table' || $args['type'] == 'stable') $ret = $this->render_table($args, &$list);
+		else $ret = $this->render_list($args, &$list);
+		
+		$t['wr_content'] = $ret;
+		return $wikiParser->parse($t);
 	}	
 
 	
@@ -648,10 +502,9 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 	 * 
 	 * @param array $args 최근문서문법에서 분석된 파라미터
 	 * @param array $list 최근문서목록
-	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터
-	 * @return string HTML 태그
+	 * @return string list
 	 */
-	protected function render_list($args, $list, $params) {	
+	protected function render_list($args, $list) {	
 		$ret = "";
 		
 		$count = 0;
@@ -677,10 +530,10 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 				
 				array_push($set_array, $content);
 			}
-			$ret .= implode("<span style='color:gray; padding: 0 5px;'>|</span>", $set_array)."\n";
+			$ret .= implode(" <color #D3D7CF>|</color> ", $set_array)."\n";
 			if($args['max']>0 && $count>=$args['max']) break;
 		}
-		
+
 		unset($list);
 		return $ret;
 	}
@@ -691,10 +544,9 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 	 * 
 	 * @param array $args 최근문서문법에서 분석된 파라미터
 	 * @param array $list 최근문서목록
-	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터
-	 * @return string HTML 태그
+	 * @return string table
 	 */
-	protected function render_table($args, $list, $params) {
+	protected function render_table($args, $list) {
 		$openline = "";
 		$closeline = "\n";
 		if($args['type'] == 'stable' && $this->sortableTablePlugin) {
@@ -703,6 +555,9 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 		}
 		$ret = $openline."^";
 		foreach($args['headers'] as $header) {
+			if($args['type'] == 'table' || !$this->sortableTablePlugin) {
+				$header = trim($header, '+-');
+			}
 			$ret .= " ".$header." ^";
 		}
 		$ret .= $closeline;
@@ -736,6 +591,274 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 		return $ret;
 	}
 
+	
+	/**
+	 *
+	 * inline 형태의 출력: datacount / datalist / dataitem / datarank
+	 *
+	 * @param array $matches 패턴매칭 결과
+	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터
+	 * @return string output
+	 */
+	public function wiki_dataout_inline($matches, $params) {
+		// matches[1] : method (count or list)
+		// matches[2] : '=' if any
+		// matches[3] : anything b/w '=' and '?'  e.g.  도시:^인구&name=부산
+		// matches[5] : list of parameter=value after '?'
+
+		$args = array();
+
+		$args['method'] = $matches[1];
+
+		// keyword
+		$args['filter_keyword'] = "1";
+		$keyword = "";
+
+		// target filtering
+		$args['filter_target'] = "1";
+		$filters_target = array();		// filters for target.. only for rank method
+
+		// condition filtering
+		$args['filter_where'] = "1";
+		$filters = array();
+
+		// for datalist
+		$args['field'] = 'fullpath';
+	
+		// for datarank
+		$args['sort'] = 'ASC';
+			
+		// process $matches[2] if exists
+		if($matches[2]) {
+			$list = explode("&", str_replace("&amp;", "&", $matches[3]));
+			$targets = explode(":", array_shift($list));		// first one should be keyword (count) or keyword:field or field (list,item,rank)
+			if($args['method'] == "count") {
+				$keyword = $targets[0];
+			}else {
+				if(count($targets)==1) {
+					$args['field'] = $targets[0];
+				}else {
+					$keyword = $targets[0];
+					$args['field']   = $targets[1];
+					if($args['method'] == "rank" && preg_match('/^\^(.*)$/', $args['field'], $sort_match)) {
+						$args['sort']  = 'DESC';
+						$args['field'] = $sort_match[1];
+					}
+				}
+			}
+			if($keyword) $args['filter_keyword'] = " keyword = '".$keyword."' ";
+	
+			foreach($list as $el) {
+				$op_pattern = '/^(.*?)(=|\!=|&lt;&gt;|&lt;|&lt;=|=&gt;|&gt;|\~|\!\~)(.*?)$/s';
+				preg_match($op_pattern, $el, $op_matches);
+				$col = $op_matches[1];
+				$val = $op_matches[3];
+				$op  = $op_matches[2];
+				$not = "";
+	
+				if($op=='~') {
+					// wildcard
+					$op = 'LIKE';
+					$val = preg_replace('/\*/', '%', $val);
+				}elseif($op=='!~') {
+					// wildcard
+					$op = 'LIKE';
+					$not = 'NOT';
+					$val = preg_replace('/\*/', '%', $val);
+				}elseif($op=='!=' || $op=='<>') {
+					$op = '=';
+					$not = 'NOT';
+				}else {
+					$op = preg_replace('/&lt;/','<',$op);
+					$op = preg_replace('/&gt;/','>',$op);
+				}
+	
+				if($col == 'class') {
+					$keyword = 'class';
+					$args['filter_keyword'] = $not." keyword ".$op." '".$val."' ";
+				}
+				else array_push($filters_target, "(col = '".$col."' AND ".$not." val ".$op." '".$val."')");
+			}
+			
+			// target filtering
+			$args['having_target'] = 0;
+			if(count($filters_target)) {
+				$args['filter_target'] = implode(' OR ', $filters_target);
+				$args['having_target'] = count($filters_target);
+			}
+		}
+	
+			
+		if($matches[5]) {
+			$list = explode("&", str_replace("&amp;", "&", $matches[5]));
+			foreach($list as $el) {
+				$op_pattern = '/^(.*?)((=|\!=|&lt;&gt;|&lt;|&lt;=|=&gt;|&gt;|\~|\!\~)(.*))?$/s';
+				preg_match($op_pattern, $el, $op_matches);
+				$col = $op_matches[1];
+				$val = $op_matches[4];
+				$op  = $op_matches[3];
+				$not = "";
+				if(!$op_matches[2]) {
+					// no comparison.. so class
+					// datalist 인경우는 keyword:field 형태로 한 field를 선택, 없는 경우는 %pageid%
+					if($args['method'] == "list" || $args['method'] == "item" || $args['method'] == "rank") {
+						$kv = explode(":", $col);
+						$val = $kv[0];
+						if($kv[1]) $args['field'] = $kv[1];
+						if($args['method'] == "rank" && preg_match('/^\^(.*)$/', $args['field'], $sort_match)) {
+							$args['sort']  = 'DESC';
+							$args['field'] = $sort_match[1];
+						}
+					}else {
+						$val = $op_matches[1];
+					}
+					$col = 'class';
+					$op = '=';
+				}else {
+					if($op=='~') {
+						// wildcard
+						$op = 'LIKE';
+						$val = preg_replace('/\*/', '%', $val);
+					}elseif($op=='!~') {
+						// wildcard
+						$op = 'LIKE';
+						$not = 'NOT';
+						$val = preg_replace('/\*/', '%', $val);
+					}elseif($op=='!=' || $op=='<>') {
+						$op = '=';
+						$not = 'NOT';
+					}else {
+						$op = preg_replace('/&lt;/','<',$op);
+						$op = preg_replace('/&gt;/','>',$op);
+					}
+				}
+	
+				if($col == 'class') {
+					$keyword = 'class';
+					$args['filter_keyword'] = $not." keyword ".$op." '".$val."' ";
+				}
+				else array_push($filters, "(col = '".$col."' AND ".$not." val ".$op." '".$val."')");
+			}
+		}
+	
+		// filtering
+		$args['having'] = 0;
+		if(count($filters)) {
+			$args['filter_where'] = implode(' OR ', $filters);
+			$args['having'] = count($filters);
+		}
+			
+		// 작성자 레벨 셋팅
+		if($params[view][mb_id]) {
+			$writer = get_member($params[view][mb_id]);
+			$args['writer_level'] = $writer[mb_level];
+		} else $args['writer_level'] = 0;
+	
+		$dataout_inline = $this->wiki_dataout_inline_nojs($args, &$params);
+	
+		$options = wiki_json_encode($args);
+	
+		return '<nocache plugin="data" method="cache_render_inline" params="'.addslashes($options).'">'.$dataout_inline.'</nocache>';
+	}
+	
+	/**
+	 *
+	 * 부분 캐시 랜더 함수
+	 *
+	 * @param array $args {@link narin.php} 에서 전달하는 파라미터
+	 * @return string HTML 태그
+	 */
+	public function cache_render_inline($args) {
+		return $this->wiki_dataout_inline_nojs($args, null);
+	}
+	
+	/**
+	 *
+	 * dataout inline 처리 without js (currently no js version though)
+	 *
+	 * @param array $args 파라미터
+	 * @param array $params {@link NarinParser} 에서 전달하는 파라미터/ can be null
+	 * @return string output
+	 */
+	public function wiki_dataout_inline_nojs($args, $params) {
+		if($args['having']>0) {
+			$having = "HAVING COUNT(1)=".$args['having'];
+		}
+	
+		if($args['method'] == "rank") {
+			if($args['having_target']>0) {
+				$having_target = "HAVING COUNT(1)=".$args['having_target'];
+			}
+		
+			$sql_wr_id = "SELECT wr_id FROM ".$this->db_table."
+							WHERE bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND (".$args['filter_target'].") 
+							GROUP BY wr_id ".$having_target;
+			$res_wr_id = sql_query($sql_wr_id);
+			$row_wr_id = mysql_fetch_assoc($res_wr_id);
+			$sort_wr_id = $row_wr_id['wr_id'];
+			if(!$sort_wr_id) return " <span style='color:red;'>등록정보없음</span> ";
+				
+			// make all wr_id list without filter_target
+			mysql_query("SET @rank=0");
+			$sql_rank = "SELECT rank FROM (
+							SELECT @rank:=@rank+1 AS rank, wr_id, val FROM (
+								SELECT d.wr_id, val FROM (
+									SELECT wr_id FROM ".$this->db_table."
+									WHERE bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND (".$args['filter_where'].")
+									GROUP BY wr_id ".$having."
+								) c, ".$this->db_table." d
+								WHERE d.bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND d.wr_id=c.wr_id AND col = '".$args['field']."'
+								ORDER BY CAST(val AS DECIMAL) ".$args['sort']."
+							) r
+						) g	
+						WHERE g.wr_id = ".$sort_wr_id;
+						//TODO: order should be done by proper casting.. maybe need to specify the data type 
+						//		e.g. _int  --> CAST(val AS UNSIGNED), _dt --> CAST(val AS DATETIME), _num  --> CAST(val AS DECIMAL)
+			$res_rank = sql_query($sql_rank);
+			$row_rank = mysql_fetch_assoc($res_rank);
+			return " ".$row_rank['rank']." ";
+		}
+			
+		$sql_wr_id = "SELECT wr_id FROM ".$this->db_table."
+						WHERE bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND (".$args['filter_where'].") 
+						GROUP BY wr_id ".$having;
+		$res_wr_id = sql_query($sql_wr_id);
+		if($args['method'] == "count") {
+			$nb_count = mysql_num_rows($res_wr_id);
+			return " ".$nb_count." ";
+		}else {
+			$data_array = array();
+			while($row_wr_id = mysql_fetch_assoc($res_wr_id)) {
+				$wr_id = $row_wr_id['wr_id'];
+			
+				// fullpath is reserved for %pageid%, docname is reserved for %title%
+				if($args['field']=='fullpath' || $args['field']=='%pageid%' || $args['field']=='%title%') {
+					$wikiArticle =& wiki_class_load("Article");
+					$write = $wikiArticle->getArticleById($wr_id);
+					$fullpath = wiki_doc($write['ns'], $write['doc']);
+					$href = wiki_url('read', array('doc'=>$fullpath));
+					if($args['field']=='fullpath' || $args['field']=='%pageid%') {
+						array_push($data_array, "<a href='".$href."' class='wiki_active_link'>".$fullpath."</a>");
+					}else {
+						array_push($data_array, "<a href='".$href."' class='wiki_active_link'>".$write['doc']."</a>");
+					}
+				}else {
+					$sql = "SELECT val FROM ".$this->db_table."
+								WHERE bo_table='".$this->bo_table."' AND ".$args['filter_keyword']." AND col='".$args['field']."' AND wr_id=".$wr_id."
+								GROUP BY wr_id";
+					$row = sql_fetch($sql);
+					array_push($data_array, $row['val']);
+				}
+				if($args['method'] == "item") {
+					return " ".array_shift($data_array)." ";
+				}
+			}
+			if(count($data_array) == 0) return " <span style='color:red;'>등록정보없음</span> ";
+			sort($data_array);
+				return " ".implode(", ", $data_array)." ";
+		}
+	}
+			
 }
 
 ?>
