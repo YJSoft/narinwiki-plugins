@@ -376,16 +376,11 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 			$args['having'] = count($filters);
 		}
 		
-		// 작성자 레벨 셋팅
-		if($params[view][mb_id]) {
-			$writer = get_member($params[view][mb_id]);
-			$args['writer_level'] = $writer[mb_level];
-		} else $args['writer_level'] = 0;
-		
 		$args['db_table'] = $this->db_table;
 		$args['keyword'] = $keyword;
 		$args['headers'] = implode('|', $headers);
 		$args['fields']  = implode('|', $fields);
+		$args['sortableTablePlugin'] = $this->sortableTablePlugin ? 1 : 0;
 		$dataout_block = $this->wiki_dataout_block_nojs($args, &$params);
 		
 		$options = wiki_json_encode($args);
@@ -491,9 +486,13 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 		
 		if($args['type'] == 'table' || $args['type'] == 'stable') $ret = $this->render_table($args, &$list);
 		else $ret = $this->render_list($args, &$list);
-		
+
 		$t['wr_content'] = $ret;
-		return $wikiParser->parse($t);
+		$content = $wikiParser->parse($t);
+		// some post parsing..
+		$pattern = '/^<div class=\'narin_contents\'>|<div id=\'wiki_toc\'>.*<!--\/\/ wiki_toc -->|<a name[^<]*><\/a>|<\/div>$/s';
+		$content = preg_replace($pattern, "", $content);
+		return $content;
 	}	
 
 	
@@ -550,13 +549,13 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 	protected function render_table($args, $list) {
 		$openline = "";
 		$closeline = "\n";
-		if($args['type'] == 'stable' && $this->sortableTablePlugin) {
+		if($args['type'] == 'stable' && $args['sortableTablePlugin']) {
 			$openline = "(";
 			$closeline = ")\n";
 		}
 		$ret = $openline."^";
 		foreach($args['headers'] as $header) {
-			if($args['type'] == 'table' || !$this->sortableTablePlugin) {
+			if($args['type'] == 'table' || !$args['sortableTablePlugin']) {
 				$header = trim($header, '+-');
 			}
 			$ret .= " ".$header." ^";
@@ -749,12 +748,6 @@ class NarinSyntaxData extends NarinSyntaxPlugin {
 			$args['having'] = count($filters);
 		}
 			
-		// 작성자 레벨 셋팅
-		if($params[view][mb_id]) {
-			$writer = get_member($params[view][mb_id]);
-			$args['writer_level'] = $writer[mb_level];
-		} else $args['writer_level'] = 0;
-	
 		$args['db_table'] = $this->db_table;
 		$dataout_inline = $this->wiki_dataout_inline_nojs($args, &$params);
 	
