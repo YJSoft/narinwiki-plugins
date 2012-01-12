@@ -42,34 +42,6 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 	 */
 	var $include_range = "W";	// default
 	
-	/**
-	 * 
-	 * include 되는 문서의 최초 section level
-	 * @var integer
-	 */
-	var $includeTopSectionLevel;
-	
-	/**
-	 * 
-	 * include 시작 이전의 기본 파서의 section 정보를 백업
-	 * @var array
-	 */
-	var $prevSections;
-	
-	/**
-	 * 
-	 * include 시작 이전의 기본 파서의 section_level 정보를 백업
-	 * @var integer
-	 */
-	var $prevSectionLevel;
-	
-
-	/**
-	 * 
-	 * include되는 문서에 의해서 복귀된 레벨
-	 * @var int
-	 */
-	var $outdentation;
 	
 	/**
 	 * 
@@ -77,9 +49,6 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 	 */
 	function init()
 	{
-		$this->writer_level = -1;
-		$this->includeTopSectionLevel = 999;
-		$this->outdentation = 0;
 	}
 
 	/**
@@ -140,14 +109,19 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		
 		// plugin settings and alternative flags
 		$args['nocontainer'] = ($this->setting_nocontainer && ($args['box'] == "no" || isset($args['nocontainer'])) ) ? true : false;
-		$args['firstseconly'] = ($this->include_rangs == "FS" || (isset($args['firstseconly']) || isset($args['fso'])) ) ? true : false;
+		$args['firstseconly'] = ($this->include_range == "FS" || (isset($args['firstseconly']) || isset($args['fso'])) ) ? true : false;
 
 		// 작성자 레벨 셋팅
 		if($params[view][mb_id]) {
 			$writer = get_member($params[view][mb_id]);
-			$args['writer_level'] = $writer[mb_level];
-		} else $args['writer_level'] = 0;
+			$writer_level = $writer[mb_level];
+		} else $writer_level = 0;
 		
+		// Include 사용 level check
+		if($this->allow_level > $writer_level) return "";
+		
+		$args['includeTopSectionLevel'] = 999;
+		$args['outdentation'] = 0;
 		$included = $this->wiki_include_nojs($args, &$params);
 		
 		if(isset($args['partialnocache']) || isset($args['pnc'])) {
@@ -194,13 +168,10 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 			$args['nocontainer'] = false;
 		}
 		
-		// Include 사용 level check
-		if($this->allow_level > $args['writer_level']) return "";
-    
 		// folder access level check
 		$wikiNS = wiki_class_load("Namespace");
 		$n = $wikiNS->get($args['loc']);
-		if($this->member[mb_level] < $n[ns_access_level]) return "";
+		if($this->member['mb_level'] < $n['ns_access_level']) return "";
 
 		// container pre/post-fix vars
     	if($args['nocontainer']) {	// flag box=no OR nocontainer
@@ -232,7 +203,7 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		$d = $wikiArticle->getArticle($args['loc'], $args['docname']);
 
 		// page access level check
-		if($this->member[mb_level] < $d['access_level']) return "";
+		if($this->member['mb_level'] < $d['access_level']) return "";
     
 		// include loop check
 		if($this->check_loop($d)) {
@@ -270,7 +241,7 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		// find the first secname and its level
 		$pattern = '/[^=](=+)\s*(.*?)\s*\1[^=]/s';
 		if(preg_match($pattern, $d['wr_content'], $matches)) {
-			$this->includeTopSectionLevel = strlen($matches[1]);
+			$args['includeTopSectionLevel'] = strlen($matches[1]);
 
 			// update the secmane based on param firstseconly
 			if($args['firstseconly']) {
@@ -308,9 +279,9 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		// if nocontainer, prepare seamless including, like closing tags, section & prepare afterwards
 		if($args['nocontainer']) {
 //			$params['parser']->stop = true;
-			$this->save_section(&$default);
-			$closeTags = $this->get_before(&$default);
-			$openTags  = $this->get_after(&$default);
+			$this->save_section(&$default, &$args);
+			$closeTags = $this->get_before(&$default, &$args);
+			$openTags  = $this->get_after(&$default, &$args);
 		}
 
 		// get rid of wiki_content, wiki_toc and wiki_footnote
@@ -333,7 +304,7 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 				array_push($default->toc, array("level"=>$v[1], "title"=>$v[2]));
 			}
 
-			$this->recover_section(&$default);
+			$this->recover_section(&$default, &$args);
 			return $closeTags.$content."<!--// wiki_include -->".$openTags;
 		}
 		else {
@@ -346,10 +317,11 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 	 * include 모드에 들어오기전의 section 과 section_level 저장
 	 *
 	 * @param array $default default parser
+	 * @param array $args 파라미터
 	 */
-	protected function save_section($default) {
-		$this->prevSections = $default->sections;
-		$this->prevSectionLevel = $default->section_level;
+	protected function save_section($default, $args) {
+		$args['prevSections'] = $default->sections;
+		$args['prevSectionLevel'] = $default->section_level;
 	}
 
 	/**
@@ -357,11 +329,12 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 	 * include 모드에 들어오기전의 section 과 section_level 복원
 	 *
 	 * @param array $default default parser
+	 * @param array $args 파라미터
 	 */
-	public function recover_section($default)
+	public function recover_section($default, $args)
 	{
-		$default->sections = $this->prevSections;
-		$default->section_level = $this->prevSectionLevel;
+		$default->sections = $args['prevSections'];
+		$default->section_level = $args['prevSectionLevel'];
 	}
 	
 	/**
@@ -370,9 +343,10 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 	 *   - section, table, p, ul, ol 등의 태그가 열려있으면 닫아줌
 	 *
 	 * @param array $default default parser
+	 * @param array $args 파라미터
 	 * @return string 닫는 태그
 	 */
-	public function get_before($default) {
+	public function get_before($default, $args) {
 		$close_tag = '';
 	
 		if ($default->list_level>0)
@@ -394,8 +368,8 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 		
 		for($i=count($default->sections)-1; $i>=0; $i--) {
 			$pSection = $default->sections[$i];
-			if($pSection['level'] >= $this->includeTopSectionLevel) {
-				$this->outdentation++;
+			if($pSection['level'] >= $args['includeTopSectionLevel']) {
+				$args['outdentation'] ++;
 				$close_tag .= $pSection['close_tag'];
 				array_pop($default->sections);
 			}
@@ -406,15 +380,16 @@ class NarinSyntaxInclude extends NarinSyntaxPlugin {
 	
 	
 	/**
-	*
-	* 기본 문법 해석기의 include 전에 닫은 section 태그 다시 열어줌
-	*
-	* @param array $default default parser
-	* @return string 닫는 태그
-	*/
-	public function get_after($default) {
+	 *
+	 * 기본 문법 해석기의 include 전에 닫은 section 태그 다시 열어줌
+	 *
+	 * @param array $default default parser
+	 * @param array $args 파라미터
+	 * @return string 닫는 태그
+	 */
+	public function get_after($default, $args) {
 		$open_tag = '';
-		for($i=$this->includeTopSectionLevel, $j=0; $i<=$default->section_level && $j<$this->outdentation; $i++, $j++) {
+		for($i=$args['includeTopSectionLevel'], $j=0; $i<=$default->section_level && $j<$args['outdentation']; $i++, $j++) {
 			$open_tag .= "<div class='wiki_section wiki_section_$i'>";
 		}
 	
