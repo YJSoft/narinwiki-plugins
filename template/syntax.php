@@ -165,7 +165,8 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 		$args['docname'] = $m[3];
 		$args['secname'] = $m[5] ? $m[5] : "";
 		$args['path'] = wiki_doc($args['loc'], $args['docname']);
-		$args['options'] = $matches[4];
+//		$args['options'] = htmlspecialchars($matches[4]);
+		$args['options'] = urlencode($matches[4]);
 		
 		// 작성자 레벨 셋팅
 		if($params[view][mb_id]) {
@@ -173,7 +174,7 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 			$args['writer_level'] = $writer[mb_level];
 		} else $args['writer_level'] = 0;
 		
-		$templated = $this->wiki_template_nojs($args, &$params);
+		$templated = $this->wiki_template_nojs(&$args, &$params);
 		
 		$options = wiki_json_encode($args);
 		
@@ -213,7 +214,8 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 		$parameters = array();
 		$values = array();
 		if($args['options']) {
-			$list = explode("&", str_replace("&amp;", "&", $args['options']));
+//			$list = explode("&", str_replace("&amp;", "&", htmlspecialchars_decode($args['options']) ));
+			$list = explode("&", str_replace("&amp;", "&", urldecode($args['options']) ));
 			foreach($list as $el) {
 				$pair = explode("=", $el);
 				array_push($parameters, "/@@".$pair[0]."@@/");
@@ -245,7 +247,10 @@ class NarinSyntaxTemplate extends NarinSyntaxPlugin {
 
 		// close all open tags
 		if(preg_match('/~~CLOSEALL~~/', $t['wr_content'])) {
-			if($params) $prefix = $this->get_close(&$default).$prefix;		// it might mess up with section level when used with ~~PAGEBOTTOME~~
+			if($params) {	// save the 'closing' html
+				$args['closeall'] = htmlspecialchars($this->get_close(&$default));
+			}
+			$prefix = htmlspecialchars_decode($args['closeall']).$prefix;		// it might mess up with section level when used with ~~PAGEBOTTOME~~
 			$t['wr_content'] = preg_replace('/~~CLOSEALL~~/', '', $t['wr_content']);
 		}
 		
